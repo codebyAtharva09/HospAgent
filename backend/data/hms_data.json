@@ -1,0 +1,41 @@
+{
+  "hospital_info": {
+    "name": "City General Hospital",
+    "total_beds": 500,
+    "departments": ["ER", "ICU", "OPD", "Surgery", "Pediatrics", "Maternity"],
+    "location": "Mumbai, India"
+  },
+  "current_status": {
+    "occupied_beds": 387,
+    "available_beds": 113,
+    "icu_occupancy": 28,
+    "er_waiting": 15,
+    "last_updated": "2024-01-15T10:30:00Z"
+  },
+  "appointments_today": [
+    {"department": "OPD", "count": 245},
+    {"department": "Surgery", "count": 12},
+    {"department": "Pediatrics", "count": 67},
+    {"department": "Maternity", "count": 23}
+  ],
+  "staff_on_duty": {
+    "doctors": 45,
+    "nurses": 78,
+    "technicians": 23,
+    "administrative": 15
+  },
+  "patient_demographics": {
+    "age_groups": {
+      "0-18": 120,
+      "19-35": 180,
+      "36-60": 220,
+      "60+": 150
+    },
+    "common_symptoms": [
+      {"symptom": "fever", "count": 45},
+      {"symptom": "cough", "count": 38},
+      {"symptom": "headache", "count": 29},
+      {"symptom": "respiratory_issues", "count": 52}
+    ]
+  }
+}
