@@ -6,14 +6,17 @@ import { StaffPanel } from "@/components/sections/StaffPanel";
 import { InventoryPanel } from "@/components/sections/InventoryPanel";
 import { AdvisoryPanel } from "@/components/sections/AdvisoryPanel";
 import { ActivityPanel } from "@/components/sections/ActivityPanel";
+import ForecastChart from "@/components/ForecastChart";
 
 const Index = () => {
-  const [activeSection, setActiveSection] = useState("overview");
+  const [activeSection, setActiveSection] = useState("forecast");
 
   const renderSection = () => {
     switch (activeSection) {
       case "overview":
         return <OverviewPanel />;
+      case "forecast":
+        return <ForecastChart />;
       case "predictions":
         return <PredictionPanel />;
       case "staff":
@@ -25,14 +28,14 @@ const Index = () => {
       case "activity":
         return <ActivityPanel />;
       default:
-        return <OverviewPanel />;
+        return <ForecastChart />;
     }
   };
 
   return (
     <div className="flex min-h-screen bg-background w-full">
       <Sidebar activeSection={activeSection} onSectionChange={setActiveSection} />
-      
+
       <main className="flex-1 overflow-auto">
         <div className="p-8 max-w-[1600px] mx-auto">
           {renderSection()}

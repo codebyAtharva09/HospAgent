@@ -1,4 +1,4 @@
-import { Activity, BarChart3, Users, Package, MessageSquare, TrendingUp, Menu } from "lucide-react";
+import { Activity, BarChart3, Users, Package, MessageSquare, TrendingUp, Menu, Zap } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: "overview", label: "Overview", icon: BarChart3 },
+  { id: "forecast", label: "AI Forecast", icon: Zap },
   { id: "predictions", label: "Patient Surge", icon: TrendingUp },
   { id: "staff", label: "Staff Allocation", icon: Users },
   { id: "inventory", label: "Supply & Inventory", icon: Package },
@@ -38,7 +39,7 @@ export const Sidebar = ({ activeSection, onSectionChange }: SidebarProps) => {
           <div className="flex items-center justify-between">
             {!isCollapsed && (
               <h1 className="text-lg font-semibold text-primary-foreground">
-                Hospital AI
+                HospAgent AI
               </h1>
             )}
             <button
