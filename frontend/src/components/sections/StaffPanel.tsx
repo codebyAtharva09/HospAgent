@@ -3,180 +3,166 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserCheck, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getStaffRecommendationsHistory } from "@/services/supabase";
-
-interface StaffData {
-  department: string;
-  current: number;
-  required: number;
-  recommendation: string;
-  status: "adequate" | "shortage" | "excess";
-}
 
 const StaffPanel = () => {
-  const [staffData, setStaffData] = useState<StaffData[]>([]);
-  const [shifts, setShifts] = useState([]);
+  const [staffData, setStaffData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchStaffData = async () => {
       try {
-        const response = await fetch('/api/resource-status');
+        setError(null);
+        const response = await fetch('http://localhost:5000/api/staff');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-
-        // Transform backend data to match frontend interface
-        const transformedStaffData: StaffData[] = [
-          {
-            department: "Emergency",
-            current: Math.floor(data.staff.doctors_on_duty * 0.4),
-            required: Math.floor(data.staff.doctors_on_duty * 0.45),
-            recommendation: `Need ${Math.max(0, Math.floor(data.staff.doctors_on_duty * 0.45) - Math.floor(data.staff.doctors_on_duty * 0.4))} more doctors`,
-            status: Math.floor(data.staff.doctors_on_duty * 0.4) >= Math.floor(data.staff.doctors_on_duty * 0.45) ? "adequate" : "shortage",
-          },
-          {
-            department: "ICU",
-            current: Math.floor(data.staff.nurses_on_duty * 0.3),
-            required: Math.floor(data.staff.nurses_on_duty * 0.35),
-            recommendation: `Need ${Math.max(0, Math.floor(data.staff.nurses_on_duty * 0.35) - Math.floor(data.staff.nurses_on_duty * 0.3))} more nurses`,
-            status: Math.floor(data.staff.nurses_on_duty * 0.3) >= Math.floor(data.staff.nurses_on_duty * 0.35) ? "adequate" : "shortage",
-          },
-          {
-            department: "General Ward",
-            current: Math.floor(data.staff.nurses_on_duty * 0.4),
-            required: Math.floor(data.staff.nurses_on_duty * 0.42),
-            recommendation: `Need ${Math.max(0, Math.floor(data.staff.nurses_on_duty * 0.42) - Math.floor(data.staff.nurses_on_duty * 0.4))} more nurses`,
-            status: Math.floor(data.staff.nurses_on_duty * 0.4) >= Math.floor(data.staff.nurses_on_duty * 0.42) ? "adequate" : "shortage",
-          },
-        ];
-
-        setStaffData(transformedStaffData);
-
-        // Calculate shift data from resource status
-        const totalStaff = data.staff.doctors_on_duty + data.staff.nurses_on_duty;
-        setShifts([
-          { shift: "Morning (6 AM - 2 PM)", staff: Math.floor(totalStaff * 0.4), utilization: Math.floor(data.staff.shift_coverage * 100) },
-          { shift: "Evening (2 PM - 10 PM)", staff: Math.floor(totalStaff * 0.35), utilization: Math.floor(data.staff.shift_coverage * 100) - 5 },
-          { shift: "Night (10 PM - 6 AM)", staff: Math.floor(totalStaff * 0.25), utilization: Math.floor(data.staff.shift_coverage * 100) - 15 },
-        ]);
-
-      } catch (error) {
-        console.error('Error fetching staff data:', error);
-        // Set fallback data on error
-        setStaffData([
-          {
-            department: "Emergency",
-            current: 18,
-            required: 20,
-            recommendation: "Need 2 more doctors",
-            status: "shortage",
-          },
-          {
-            department: "ICU",
-            current: 36,
-            required: 42,
-            recommendation: "Need 6 more nurses",
-            status: "shortage",
-          },
-          {
-            department: "General Ward",
-            current: 48,
-            required: 50,
-            recommendation: "Need 2 more nurses",
-            status: "adequate",
-          },
-        ]);
-        setShifts([
-          { shift: "Morning (6 AM - 2 PM)", staff: 58, utilization: 92 },
-          { shift: "Evening (2 PM - 10 PM)", staff: 51, utilization: 88 },
-          { shift: "Night (10 PM - 6 AM)", staff: 37, utilization: 76 },
-        ]);
+        setStaffData(data);
+      } catch (err) {
+        console.error('Error fetching staff data:', err);
+        setError('Failed to load staff data. Please check if the backend is running.');
       } finally {
         setLoading(false);
       }
     };
 
-    // Initial fetch
     fetchStaffData();
-
-    // Set up real-time polling every 5 seconds
-    const interval = setInterval(fetchStaffData, 5000);
-
-    // Cleanup interval on component unmount
+    const interval = setInterval(fetchStaffData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading staff data...</div>;
+    return (
+      <div className="p-6 bg-white rounded-2xl shadow-lg">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-64 bg-gray-200 rounded mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-white rounded-2xl shadow-lg">
+        <div className="text-center py-12">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Connection Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Staff Allocation</h2>
-          <p className="text-muted-foreground">AI-optimized staffing recommendations</p>
+          <h2 className="text-2xl font-bold text-gray-900">👥 Staff Allocation</h2>
+          <p className="text-gray-600">AI-optimized staffing recommendations</p>
         </div>
-        <Button className="bg-gradient-primary shadow-medium hover:shadow-strong">
+        <Button className="bg-blue-500 hover:bg-blue-600 text-white shadow-md">
           <UserCheck size={18} className="mr-2" />
           Apply AI Recommendations
         </Button>
       </div>
 
-      {/* Department Staffing Table */}
-      <Card className="shadow-soft overflow-hidden">
+      {/* Staff Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Doctors</p>
+              <p className="text-2xl font-bold text-gray-900">{staffData.doctors.on_duty}/{staffData.doctors.total}</p>
+              <p className="text-xs text-gray-500">On Duty / Total</p>
+            </div>
+            <div className={`p-2 rounded-full ${staffData.doctors.on_duty >= staffData.doctors.recommended ? 'bg-green-100' : 'bg-red-100'}`}>
+              <UserCheck className={`w-6 h-6 ${staffData.doctors.on_duty >= staffData.doctors.recommended ? 'text-green-600' : 'text-red-600'}`} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Nurses</p>
+              <p className="text-2xl font-bold text-gray-900">{staffData.nurses.on_duty}/{staffData.nurses.total}</p>
+              <p className="text-xs text-gray-500">On Duty / Total</p>
+            </div>
+            <div className={`p-2 rounded-full ${staffData.nurses.on_duty >= staffData.nurses.recommended ? 'bg-green-100' : 'bg-red-100'}`}>
+              <UserCheck className={`w-6 h-6 ${staffData.nurses.on_duty >= staffData.nurses.recommended ? 'text-green-600' : 'text-red-600'}`} />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 bg-gradient-to-br from-purple-50 to-violet-50 border-purple-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Technicians</p>
+              <p className="text-2xl font-bold text-gray-900">{staffData.technicians.on_duty}/{staffData.technicians.total}</p>
+              <p className="text-xs text-gray-500">On Duty / Total</p>
+            </div>
+            <div className={`p-2 rounded-full ${staffData.technicians.on_duty >= staffData.technicians.recommended ? 'bg-green-100' : 'bg-red-100'}`}>
+              <UserCheck className={`w-6 h-6 ${staffData.technicians.on_duty >= staffData.technicians.recommended ? 'text-green-600' : 'text-red-600'}`} />
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Department Allocation Table */}
+      <Card className="shadow-lg overflow-hidden">
+        <div className="px-6 py-4 bg-gray-50 border-b">
+          <h3 className="text-lg font-semibold text-gray-900">Department-wise Allocation</h3>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-secondary">
+            <thead className="bg-gray-100">
               <tr>
-                <th className="text-left p-4 text-sm font-semibold text-secondary-foreground">Department</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Current Staff</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Required</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Status</th>
-                <th className="text-left p-4 text-sm font-semibold text-secondary-foreground">AI Recommendation</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Action</th>
+                <th className="text-left p-4 text-sm font-semibold text-gray-700">Department</th>
+                <th className="text-center p-4 text-sm font-semibold text-gray-700">Doctors</th>
+                <th className="text-center p-4 text-sm font-semibold text-gray-700">Nurses</th>
+                <th className="text-center p-4 text-sm font-semibold text-gray-700">Technicians</th>
+                <th className="text-center p-4 text-sm font-semibold text-gray-700">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
-              {staffData.map((dept) => {
-                const Icon =
-                  dept.status === 'shortage' ? AlertTriangle :
-                  dept.status === 'excess' ? Clock : CheckCircle;
-
-                const statusConfig = {
-                  adequate: { bg: "bg-success/10", text: "text-success", label: "Adequate" },
-                  shortage: { bg: "bg-destructive/10", text: "text-destructive", label: "Shortage" },
-                  excess: { bg: "bg-accent/10", text: "text-accent", label: "Excess" },
-                };
+            <tbody className="divide-y divide-gray-200">
+              {staffData.allocation.map((dept, index) => {
+                const totalStaff = dept.doctors + dept.nurses + dept.technicians;
+                const isAdequate = totalStaff >= 40; // Simple threshold
 
                 return (
-                  <tr key={dept.department} className="hover:bg-muted/50 transition-colors">
+                  <tr key={index} className="hover:bg-gray-50 transition-colors">
                     <td className="p-4">
-                      <span className="font-medium text-foreground">{dept.department}</span>
+                      <span className="font-medium text-gray-900">{dept.department}</span>
                     </td>
                     <td className="p-4 text-center">
-                      <span className="text-foreground font-semibold">{dept.current}</span>
+                      <span className="text-gray-900 font-semibold">{dept.doctors}</span>
                     </td>
                     <td className="p-4 text-center">
-                      <span className="text-muted-foreground">{dept.required}</span>
+                      <span className="text-gray-900 font-semibold">{dept.nurses}</span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className="text-gray-900 font-semibold">{dept.technicians}</span>
                     </td>
                     <td className="p-4">
-                      <div className="flex items-center justify-center gap-2">
-                        <Badge variant="outline" className={`${statusConfig[dept.status].bg} ${statusConfig[dept.status].text} border-0`}>
-                          <Icon size={12} className="mr-1" />
-                          {statusConfig[dept.status].label}
+                      <div className="flex items-center justify-center">
+                        <Badge variant="outline" className={`${isAdequate ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                          {isAdequate ? <CheckCircle size={12} className="mr-1" /> : <AlertTriangle size={12} className="mr-1" />}
+                          {isAdequate ? 'Adequate' : 'Needs Attention'}
                         </Badge>
                       </div>
-                    </td>
-                    <td className="p-4">
-                      <span className="text-sm text-muted-foreground">{dept.recommendation}</span>
-                    </td>
-                    <td className="p-4 text-center">
-                      <Button variant="outline" size="sm" className="text-primary border-primary hover:bg-primary hover:text-primary-foreground">
-                        Adjust
-                      </Button>
                     </td>
                   </tr>
                 );
@@ -186,34 +172,10 @@ const StaffPanel = () => {
         </div>
       </Card>
 
-      {/* Shift Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {shifts.map((shift) => (
-          <Card key={shift.shift} className="p-5 shadow-soft">
-            <h4 className="font-semibold text-foreground mb-3">{shift.shift}</h4>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Assigned Staff</p>
-                <p className="text-2xl font-bold text-foreground">{shift.staff}</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-sm text-muted-foreground">Utilization</p>
-                  <p className="text-sm font-medium text-foreground">{shift.utilization}%</p>
-                </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${
-                      shift.utilization > 90 ? 'bg-destructive' :
-                      shift.utilization > 80 ? 'bg-warning' : 'bg-success'
-                    }`}
-                    style={{ width: `${shift.utilization}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
+      <div className="text-center">
+        <p className="text-xs text-gray-500">
+          Data refreshes every 30 seconds • AI-powered recommendations
+        </p>
       </div>
     </div>
   );

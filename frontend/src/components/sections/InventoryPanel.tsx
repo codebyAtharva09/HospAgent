@@ -1,285 +1,216 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Package, TrendingDown } from "lucide-react";
+import { AlertTriangle, Package, TrendingDown, CheckCircle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getInventoryRecommendationsHistory } from "@/services/supabase";
-
-interface InventoryItem {
-  name: string;
-  category: string;
-  current: number;
-  minimum: number;
-  unit: string;
-  depletionDays: number;
-  status: "critical" | "low" | "adequate";
-}
 
 const InventoryPanel = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [inventoryData, setInventoryData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchInventoryData = async () => {
       try {
-        const response = await fetch('/api/resource-status');
+        setError(null);
+        const response = await fetch('http://localhost:5000/api/inventory');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-
-        // Transform backend data to match frontend interface
-        const transformedInventory: InventoryItem[] = [
-          {
-            name: "Surgical Masks (N95)",
-            category: "PPE",
-            current: Math.floor(data.oxygen.cylinders_available * 3), // Simulate mask inventory
-            minimum: 500,
-            unit: "boxes",
-            depletionDays: Math.floor(Math.floor(data.oxygen.cylinders_available * 3) / 150),
-            status: Math.floor(data.oxygen.cylinders_available * 3) < 500 ? "critical" : Math.floor(data.oxygen.cylinders_available * 3) < 750 ? "low" : "adequate",
-          },
-          {
-            name: "Sterile Gloves",
-            category: "PPE",
-            current: Math.floor(data.beds.available * 10), // Simulate glove inventory
-            minimum: 2000,
-            unit: "pairs",
-            depletionDays: Math.floor(Math.floor(data.beds.available * 10) / 350),
-            status: Math.floor(data.beds.available * 10) >= 2000 ? "adequate" : "low",
-          },
-          {
-            name: "IV Fluids (Saline)",
-            category: "Medical Supplies",
-            current: Math.floor(data.beds.available * 5), // Simulate IV fluid inventory
-            minimum: 500,
-            unit: "bags",
-            depletionDays: Math.floor(Math.floor(data.beds.available * 5) / 136),
-            status: Math.floor(data.beds.available * 5) >= 500 ? "adequate" : "low",
-          },
-          {
-            name: "Antibiotics (General)",
-            category: "Medicines",
-            current: Math.floor(data.staff.doctors_on_duty * 4), // Simulate antibiotic inventory
-            minimum: 300,
-            unit: "units",
-            depletionDays: Math.floor(Math.floor(data.staff.doctors_on_duty * 4) / 60),
-            status: Math.floor(data.staff.doctors_on_duty * 4) < 300 ? "low" : "adequate",
-          },
-          {
-            name: "Syringes (5ml)",
-            category: "Medical Supplies",
-            current: Math.floor(data.beds.available * 8), // Simulate syringe inventory
-            minimum: 1500,
-            unit: "units",
-            depletionDays: Math.floor(Math.floor(data.beds.available * 8) / 200),
-            status: Math.floor(data.beds.available * 8) < 1500 ? "low" : "adequate",
-          },
-          {
-            name: "Oxygen Cylinders",
-            category: "Critical",
-            current: data.oxygen.cylinders_available,
-            minimum: data.oxygen.critical_threshold,
-            unit: "cylinders",
-            depletionDays: Math.floor(data.oxygen.cylinders_available / data.oxygen.consumption_rate),
-            status: data.oxygen.cylinders_available < data.oxygen.critical_threshold ? "critical" : "adequate",
-          },
-        ];
-
-        setInventory(transformedInventory);
-      } catch (error) {
-        console.error('Error fetching inventory data:', error);
-        // Set fallback data on error
-        setInventory([
-          {
-            name: "Surgical Masks (N95)",
-            category: "PPE",
-            current: 450,
-            minimum: 500,
-            unit: "boxes",
-            depletionDays: 3,
-            status: "critical",
-          },
-          {
-            name: "Sterile Gloves",
-            category: "PPE",
-            current: 2800,
-            minimum: 2000,
-            unit: "pairs",
-            depletionDays: 8,
-            status: "adequate",
-          },
-          {
-            name: "IV Fluids (Saline)",
-            category: "Medical Supplies",
-            current: 680,
-            minimum: 500,
-            unit: "bags",
-            depletionDays: 5,
-            status: "adequate",
-          },
-          {
-            name: "Antibiotics (General)",
-            category: "Medicines",
-            current: 240,
-            minimum: 300,
-            unit: "units",
-            depletionDays: 4,
-            status: "low",
-          },
-          {
-            name: "Syringes (5ml)",
-            category: "Medical Supplies",
-            current: 1200,
-            minimum: 1500,
-            unit: "units",
-            depletionDays: 6,
-            status: "low",
-          },
-          {
-            name: "Oxygen Cylinders",
-            category: "Critical",
-            current: 42,
-            minimum: 50,
-            unit: "cylinders",
-            depletionDays: 2,
-            status: "critical",
-          },
-        ]);
+        setInventoryData(data);
+      } catch (err) {
+        console.error('Error fetching inventory data:', err);
+        setError('Failed to load inventory data. Please check if the backend is running.');
       } finally {
         setLoading(false);
       }
     };
 
-    // Initial fetch
     fetchInventoryData();
-
-    // Set up real-time polling every 5 seconds
-    const interval = setInterval(fetchInventoryData, 5000);
-
-    // Cleanup interval on component unmount
+    const interval = setInterval(fetchInventoryData, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading inventory data...</div>;
+    return (
+      <div className="p-6 bg-white rounded-2xl shadow-lg">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-64 bg-gray-200 rounded mb-6"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-20 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-white rounded-2xl shadow-lg">
+        <div className="text-center py-12">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Connection Error</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'adequate': return 'bg-green-100 text-green-800 border-green-200';
+      case 'low': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      default: return 'bg-red-100 text-red-800 border-red-200';
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'adequate': return <CheckCircle size={12} className="mr-1" />;
+      case 'low': return <AlertTriangle size={12} className="mr-1" />;
+      default: return <AlertTriangle size={12} className="mr-1" />;
+    }
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground">Supply & Inventory</h2>
-          <p className="text-muted-foreground">Real-time stock levels and depletion forecasts</p>
+          <h2 className="text-2xl font-bold text-gray-900">📦 Supply & Inventory</h2>
+          <p className="text-gray-600">Real-time stock levels and AI-powered reorder alerts</p>
         </div>
-        <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+        <Button className="bg-blue-500 hover:bg-blue-600 text-white shadow-md">
           <Package size={18} className="mr-2" />
-          View All Items
+          Manage Inventory
         </Button>
       </div>
 
       {/* Critical Alerts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {inventory
-          .filter(item => item.status === 'critical')
-          .map(item => (
-            <Card key={item.name} className="p-4 border-l-4 border-l-destructive bg-destructive/5">
+      {inventoryData.alerts && inventoryData.alerts.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="text-lg font-semibold text-gray-900">🚨 Critical Alerts</h3>
+          {inventoryData.alerts.map((alert, index) => (
+            <Card key={index} className="p-4 border-l-4 border-l-red-500 bg-red-50">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="text-destructive flex-shrink-0 mt-0.5" size={20} />
+                <AlertTriangle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
                 <div className="flex-1">
-                  <h4 className="font-semibold text-foreground">{item.name}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Only <span className="font-semibold text-destructive">{item.current} {item.unit}</span> remaining
-                  </p>
+                  <h4 className="font-semibold text-gray-900">{alert.item}</h4>
+                  <p className="text-sm text-gray-700 mt-1">{alert.message}</p>
                   <div className="flex items-center gap-3 mt-2">
-                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive">
-                      {item.depletionDays} days left
+                    <Badge variant="outline" className="bg-red-100 text-red-800 border-red-200">
+                      Priority: {alert.priority}
                     </Badge>
-                    <Button size="sm" className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                      Reorder Now
+                    <Button size="sm" className="bg-red-600 text-white hover:bg-red-700">
+                      {alert.action_required}
                     </Button>
                   </div>
                 </div>
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Inventory Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(inventoryData).filter(([key]) => key !== 'alerts').map(([key, item]) => (
+          <Card key={key} className="p-6 bg-gradient-to-br from-white to-gray-50 border border-gray-200 hover:shadow-lg transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 capitalize">{key}</h3>
+              <Badge variant="outline" className={getStatusColor(item.status)}>
+                {getStatusIcon(item.status)}
+                {item.status}
+              </Badge>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-gray-600">Current Stock</p>
+                <p className="text-2xl font-bold text-gray-900">{item.current_stock || item.current}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600">Daily Consumption</p>
+                <p className="text-lg font-semibold text-gray-700">{item.daily_consumption}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-gray-600">Reorder Point</p>
+                <p className="text-lg font-semibold text-gray-700">{item.reorder_point}</p>
+              </div>
+
+              {item.supplier && (
+                <div>
+                  <p className="text-sm text-gray-600">Supplier</p>
+                  <p className="text-sm font-medium text-gray-800">{item.supplier}</p>
+                </div>
+              )}
+
+              <div className="pt-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Stock Level</span>
+                  <span className={`font-medium ${item.current_stock < item.reorder_point ? 'text-red-600' : 'text-green-600'}`}>
+                    {Math.round((item.current_stock / (item.reorder_point * 1.5)) * 100)}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                  <div
+                    className={`h-2 rounded-full ${item.current_stock < item.reorder_point ? 'bg-red-500' : 'bg-green-500'}`}
+                    style={{ width: `${Math.min(100, (item.current_stock / (item.reorder_point * 1.5)) * 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Inventory Table */}
-      <Card className="shadow-soft overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-secondary">
-              <tr>
-                <th className="text-left p-4 text-sm font-semibold text-secondary-foreground">Item</th>
-                <th className="text-left p-4 text-sm font-semibold text-secondary-foreground">Category</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Current Stock</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Min Required</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Status</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Depletion</th>
-                <th className="text-center p-4 text-sm font-semibold text-secondary-foreground">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {inventory.map((item) => {
-                const statusConfig = {
-                  critical: { bg: "bg-destructive/10", text: "text-destructive", label: "Critical" },
-                  low: { bg: "bg-warning/10", text: "text-warning", label: "Low Stock" },
-                  adequate: { bg: "bg-success/10", text: "text-success", label: "Adequate" },
-                };
-
-                return (
-                  <tr key={item.name} className="hover:bg-muted/50 transition-colors">
-                    <td className="p-4">
-                      <span className="font-medium text-foreground">{item.name}</span>
-                    </td>
-                    <td className="p-4">
-                      <Badge variant="outline" className="bg-secondary text-secondary-foreground">
-                        {item.category}
-                      </Badge>
-                    </td>
-                    <td className="p-4 text-center">
-                      <span className="font-semibold text-foreground">
-                        {item.current} {item.unit}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center">
-                      <span className="text-muted-foreground">
-                        {item.minimum} {item.unit}
-                      </span>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex justify-center">
-                        <Badge variant="outline" className={`${statusConfig[item.status].bg} ${statusConfig[item.status].text} border-0`}>
-                          {statusConfig[item.status].label}
-                        </Badge>
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-1 text-sm text-muted-foreground">
-                        <TrendingDown size={14} className={item.depletionDays <= 3 ? 'text-destructive' : 'text-warning'} />
-                        {item.depletionDays} days
-                      </div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className={item.status === 'critical'
-                          ? "border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                          : "border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-                        }
-                      >
-                        Reorder
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* Summary Stats */}
+      <Card className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">📊 Inventory Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="text-center">
+            <p className="text-2xl font-bold text-blue-600">
+              {Object.values(inventoryData).filter(item => item.status === 'adequate').length}
+            </p>
+            <p className="text-sm text-gray-600">Adequate Stock</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-yellow-600">
+              {Object.values(inventoryData).filter(item => item.status === 'low').length}
+            </p>
+            <p className="text-sm text-gray-600">Low Stock</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-red-600">
+              {inventoryData.alerts ? inventoryData.alerts.length : 0}
+            </p>
+            <p className="text-sm text-gray-600">Critical Alerts</p>
+          </div>
+          <div className="text-center">
+            <p className="text-2xl font-bold text-green-600">
+              {Object.values(inventoryData).reduce((sum, item) => sum + (item.daily_consumption || 0), 0)}
+            </p>
+            <p className="text-sm text-gray-600">Daily Consumption</p>
+          </div>
         </div>
       </Card>
+
+      <div className="text-center">
+        <p className="text-xs text-gray-500">
+          Data refreshes every 30 seconds • AI-powered inventory management
+        </p>
+      </div>
     </div>
   );
 };
