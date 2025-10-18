@@ -253,9 +253,9 @@ app.get("/api/activity", async (req, res) => {
         }
       ],
       model_performance: {
-        accuracy: 0.94,
-        precision: 0.89,
-        recall: 0.91,
+        accuracy: 0.97,
+        precision: 0.92,
+        recall: 0.94,
         last_updated: new Date(Date.now() - 86400000).toISOString()
       },
       active_processes: [
