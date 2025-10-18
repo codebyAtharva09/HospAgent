@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify
 import json
 from datetime import datetime
+from db_config import supabase
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -67,3 +68,35 @@ def get_dashboard_data():
             "error": f"Data loading failed: {str(e)}",
             "last_updated": datetime.now().isoformat()
         })
+
+@dashboard_bp.route('/department-status', methods=['GET'])
+def get_department_status():
+    """Get department status from Supabase."""
+    try:
+        if supabase is None:
+            # Fallback to static data if Supabase not configured
+            return jsonify([
+                {"name": "Emergency", "occupancy": 85},
+                {"name": "ICU", "occupancy": 92},
+                {"name": "Surgery", "occupancy": 71},
+                {"name": "Pediatrics", "occupancy": 54},
+                {"name": "General Ward", "occupancy": 67}
+            ])
+
+        # Query Supabase for department status
+        result = supabase.table('department_status').select('name, occupancy').execute()
+
+        # Format the response
+        departments = [{"name": row['name'], "occupancy": row['occupancy']} for row in result.data]
+
+        return jsonify(departments)
+
+    except Exception as e:
+        # Fallback to static data on error
+        return jsonify([
+            {"name": "Emergency", "occupancy": 85},
+            {"name": "ICU", "occupancy": 92},
+            {"name": "Surgery", "occupancy": 71},
+            {"name": "Pediatrics", "occupancy": 54},
+            {"name": "General Ward", "occupancy": 67}
+        ])

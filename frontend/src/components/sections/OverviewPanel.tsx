@@ -191,8 +191,8 @@ export const OverviewPanel = () => {
         <div className="space-y-3">
           {Object.entries(data.department_status).map(([dept, load]) => {
             let status: "stable" | "warning" | "critical" = "stable";
-            if (load >= 90) status = "critical";
-            else if (load >= 80) status = "warning";
+            if (load >= 85) status = "critical";
+            else if (load >= 65) status = "warning";
 
             return (
               <div key={dept} className="flex items-center gap-4">
@@ -204,8 +204,8 @@ export const OverviewPanel = () => {
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
-                        status === 'critical' ? 'bg-destructive' :
-                        status === 'warning' ? 'bg-warning' : 'bg-success'
+                        status === 'critical' ? 'bg-red-500' :
+                        status === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
                       style={{ width: `${load}%` }}
                     />
