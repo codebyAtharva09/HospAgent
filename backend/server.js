@@ -253,7 +253,7 @@ app.get("/api/activity", async (req, res) => {
         }
       ],
       model_performance: {
-        accuracy: 0.97,
+        accuracy: 97.96,
         precision: 0.92,
         recall: 0.94,
         last_updated: new Date(Date.now() - 86400000).toISOString()

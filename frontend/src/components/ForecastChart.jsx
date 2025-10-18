@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from "recharts";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function ForecastChart() {
   const [data, setData] = useState([]);
@@ -39,15 +37,7 @@ export default function ForecastChart() {
     return () => clearInterval(interval);
   }, []);
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.05 } },
-  };
 
-  const cardVariants = {
-    hidden: { opacity: 0, y: 8 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-  };
 
   if (loading) {
     return (
@@ -84,12 +74,7 @@ export default function ForecastChart() {
   }
 
   return (
-    <motion.div
-      className="p-6 bg-white rounded-2xl shadow-lg"
-      initial="hidden"
-      animate="visible"
-      variants={containerVariants}
-    >
+    <div className="p-6 bg-white rounded-2xl shadow-lg">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold text-gray-900">📊 7-Day Patient Flow Forecast</h2>
         <div className="flex items-center space-x-2">
@@ -98,7 +83,7 @@ export default function ForecastChart() {
         </div>
       </div>
 
-      <motion.div layoutId="chart" className="w-full h-72 mb-6">
+      <div className="w-full h-72 mb-6">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -156,29 +141,23 @@ export default function ForecastChart() {
             />
           </LineChart>
         </ResponsiveContainer>
-      </motion.div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
-        <AnimatePresence>
-          {data.map((item, i) => (
-            <motion.div
-              key={item.fullDate}
-              variants={cardVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100 text-center hover:shadow-md transition-shadow"
-            >
-              <p className="text-sm font-medium text-gray-600 mb-1">{item.date}</p>
-              <h3 className="text-xl font-bold text-gray-900 mb-1">{item.predicted_inflow}</h3>
-              <p className="text-xs text-gray-500 mb-2">patients expected</p>
-              <div className="flex items-center justify-center space-x-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <p className="text-xs font-medium text-green-600">{item.confidence}%</p>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+        {data.map((item, i) => (
+          <div
+            key={item.fullDate}
+            className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100 text-center hover:shadow-md transition-shadow"
+          >
+            <p className="text-sm font-medium text-gray-600 mb-1">{item.date}</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-1">{item.predicted_inflow}</h3>
+            <p className="text-xs text-gray-500 mb-2">patients expected</p>
+            <div className="flex items-center justify-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <p className="text-xs font-medium text-green-600">{item.confidence}%</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="mt-6 text-center">
@@ -186,6 +165,6 @@ export default function ForecastChart() {
           Data refreshes every 30 seconds • Powered by AI forecasting
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 }
