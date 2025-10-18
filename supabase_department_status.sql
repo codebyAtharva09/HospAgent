@@ -1,7 +1,7 @@
 -- Create department_status table
 CREATE TABLE IF NOT EXISTS department_status (
     id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL UNIQUE, 
     occupancy INTEGER NOT NULL CHECK (occupancy >= 0 AND occupancy <= 100),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
