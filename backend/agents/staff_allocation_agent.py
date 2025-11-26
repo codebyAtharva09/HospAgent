@@ -97,3 +97,38 @@ class StaffAllocationAgent:
                     nurse['available'] = available
                     return True
         return False
+
+    def optimize_staff_allocation(self, current_staff, predicted_demand):
+        """Optimize staff allocation based on predictions."""
+        # Mock optimization logic
+        total_patients = predicted_demand.get('predicted_patients', 100)
+        
+        # Simple heuristic: 1 doctor per 20 patients, 1 nurse per 10 patients
+        recommended_doctors = max(1, int(total_patients / 20))
+        recommended_nurses = max(2, int(total_patients / 10))
+        
+        return {
+            'total_recommended': recommended_doctors + recommended_nurses,
+            'details': {
+                'doctors': recommended_doctors,
+                'nurses': recommended_nurses
+            },
+            'recommendations': [
+                f"Increase doctors by {max(0, recommended_doctors - current_staff.get('doctors', 0))}",
+                f"Increase nurses by {max(0, recommended_nurses - current_staff.get('nurses', 0))}"
+            ]
+        }
+
+    def analyze_shift_coverage(self):
+        """Analyze shift coverage and identify gaps."""
+        # Mock coverage analysis
+        return {
+            'status': 'adequate',
+            'coverage_percent': 85,
+            'gaps': [
+                {'shift': 'night', 'department': 'ER', 'role': 'nurse', 'shortage': 2}
+            ],
+            'alerts': [
+                {'type': 'staffing', 'message': 'Night shift ER nurse shortage detected', 'severity': 'medium'}
+            ]
+        }

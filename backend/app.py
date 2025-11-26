@@ -11,6 +11,7 @@ from routes.advisory_routes import advisory_bp
 from routes.hms_routes import hms_bp
 from routes.dashboard_routes import dashboard_bp
 from routes.agent_routes import agent_bp
+from routes.enhanced_routes import enhanced_bp
 
 from agents.data_agent import DataAgent
 from agents.predictive_agent import PredictiveAgent
@@ -35,6 +36,10 @@ app.register_blueprint(advisory_bp, url_prefix='/api')
 app.register_blueprint(hms_bp, url_prefix='/api')
 app.register_blueprint(dashboard_bp, url_prefix='/api')
 app.register_blueprint(agent_bp, url_prefix='/api/agents')
+app.register_blueprint(enhanced_bp, url_prefix='/api/enhanced')
+
+from routes.surge_routes import surge_bp
+app.register_blueprint(surge_bp, url_prefix='/api')
 
 # Initialize agents
 data_agent = DataAgent()

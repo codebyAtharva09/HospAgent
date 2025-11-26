@@ -1,0 +1,122 @@
+{
+    "name": "HospAgent SurgeOps - Automated Alerts",
+    "nodes": [
+        {
+            "parameters": {
+                "path": "alerts/trigger",
+                "responseMode": "lastNode",
+                "options": {}
+            },
+            "name": "Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:8000/api/predict/alerts/trigger",
+                "method": "GET",
+                "options": {}
+            },
+            "name": "Fetch Alerts",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$node[\"Fetch Alerts\"].json[\"alerts\"].length}}",
+                            "operation": "larger",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "name": "Check Alerts",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "channel": "hospital-alerts",
+                "text": "=🚨 *HospAgent Alert*\n\n{{$node[\"Fetch Alerts\"].json[\"alerts\"][0][\"message\"]}}\n\nSeverity: {{$node[\"Fetch Alerts\"].json[\"alerts\"][0][\"severity\"]}}",
+                "attachments": [],
+                "otherOptions": {}
+            },
+            "name": "Slack Alert",
+            "type": "n8n-nodes-base.slack",
+            "typeVersion": 1,
+            "position": [
+                850,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "subject": "HospAgent Surge Alert",
+                "text": "=High risk detected. Please check the dashboard.",
+                "toEmail": "admin@hospital.com"
+            },
+            "name": "Email Alert",
+            "type": "n8n-nodes-base.emailSend",
+            "typeVersion": 1,
+            "position": [
+                850,
+                400
+            ]
+        }
+    ],
+    "connections": {
+        "Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Alerts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Alerts": {
+            "main": [
+                [
+                    {
+                        "node": "Check Alerts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Alerts": {
+            "main": [
+                [
+                    {
+                        "node": "Slack Alert",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Email Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

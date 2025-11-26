@@ -32,17 +32,18 @@ def predict_surge():
     prediction = predictive_agent.predict_surge(event_type, aqi)
 
     # Save prediction to Supabase
-    try:
-        prediction_date = datetime.now().date()
-        supabase.table("predictions").insert({
-            "id": str(uuid.uuid4()),
-            "date": prediction_date.isoformat(),
-            "predicted_patients": prediction.get('predicted_patients', 0),
-            "aqi": aqi,
-            "event_type": event_type
-        }).execute()
-    except Exception as e:
-        print(f"Failed to save prediction to Supabase: {e}")
+    if supabase:
+        try:
+            prediction_date = datetime.now().date()
+            supabase.table("predictions").insert({
+                "id": str(uuid.uuid4()),
+                "date": prediction_date.isoformat(),
+                "predicted_patients": prediction.get('predicted_patients', 0),
+                "aqi": aqi,
+                "event_type": event_type
+            }).execute()
+        except Exception as e:
+            print(f"Failed to save prediction to Supabase: {e}")
 
     return jsonify(prediction)
 
@@ -65,17 +66,18 @@ def forecast():
     forecasts = predictive_agent.predict_next_7_days('normal', 100)
 
     # Save forecasts to Supabase
-    try:
-        for forecast_item in forecasts:
-            supabase.table("predictions").insert({
-                "id": str(uuid.uuid4()),
-                "date": forecast_item['date'],
-                "predicted_patients": forecast_item['predicted_patients'],
-                "aqi": 100,  # Default AQI for forecasts
-                "event_type": "forecast"
-            }).execute()
-    except Exception as e:
-        print(f"Failed to save forecasts to Supabase: {e}")
+    if supabase:
+        try:
+            for forecast_item in forecasts:
+                supabase.table("predictions").insert({
+                    "id": str(uuid.uuid4()),
+                    "date": forecast_item['date'],
+                    "predicted_patients": forecast_item['predicted_patients'],
+                    "aqi": 100,  # Default AQI for forecasts
+                    "event_type": "forecast"
+                }).execute()
+        except Exception as e:
+            print(f"Failed to save forecasts to Supabase: {e}")
 
     return jsonify(forecasts)
 

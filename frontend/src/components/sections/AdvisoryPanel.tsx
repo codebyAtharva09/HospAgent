@@ -1,202 +1,147 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Share2, FileText, MapPin, AlertCircle, MessageSquare } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { AlertCircle, Bell, Info, CheckCircle, Share2, FileText } from "lucide-react";
+import api from "@/services/api";
 
-export const AdvisoryPanel = () => {
-  const [advisoryData, setAdvisoryData] = useState(null);
+interface Alert {
+  id: string;
+  title: string;
+  message: string;
+  priority: 'high' | 'medium' | 'low';
+  timestamp: string;
+  target_audience: string;
+}
+
+interface Recommendation {
+  category: string;
+  advice: string;
+  validity: string;
+}
+
+interface AdvisoryData {
+  current_alerts: Alert[];
+  recommendations: Recommendation[];
+  communication_channels: string[];
+}
+
+const AdvisoryPanel = () => {
+  const [advisoryData, setAdvisoryData] = useState<AdvisoryData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAdvisoryData = async () => {
       try {
+        const response = await api.get('/advisory');
+        setAdvisoryData(response.data);
         setError(null);
-        const response = await fetch('http://localhost:5000/api/advisory');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setAdvisoryData(data);
       } catch (err) {
         console.error('Error fetching advisory data:', err);
-        setError('Failed to load advisory data. Please check if the backend is running.');
+        setError('Failed to load advisory data');
       } finally {
         setLoading(false);
       }
     };
 
     fetchAdvisoryData();
-    const interval = setInterval(fetchAdvisoryData, 30000); // Refresh every 30 seconds
+    const interval = setInterval(fetchAdvisoryData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-6 bg-white rounded-2xl shadow-lg">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-4 text-muted-foreground animate-pulse">Loading advisories...</div>;
+  if (error) return <div className="p-4 text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20">{error}</div>;
+  if (!advisoryData) return null;
 
-  if (error) {
-    return (
-      <div className="p-6 bg-white rounded-2xl shadow-lg">
-        <div className="text-center py-12">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Connection Error</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const getPriorityColor = (priority) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-green-100 text-green-800 border-green-200';
+      case 'high': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+      case 'medium': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+      case 'low': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      default: return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 h-full flex flex-col">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">📢 Patient Advisory</h2>
-          <p className="text-gray-600">AI-powered public communication and health alerts</p>
-        </div>
-        <Button className="bg-blue-500 hover:bg-blue-600 text-white shadow-md">
-          <MessageSquare size={18} className="mr-2" />
-          Create Advisory
-        </Button>
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Bell className="h-5 w-5 text-amber-500" />
+          Advisories & Alerts
+        </h2>
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+          {advisoryData.current_alerts.length} Active
+        </Badge>
       </div>
 
-      {/* Current Alerts */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-gray-900">🚨 Current Alerts</h3>
-        {advisoryData.current_alerts.map((alert, index) => (
-          <Card key={index} className="p-6 bg-gradient-to-br from-white to-red-50 border-red-200 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-3">
-                  <h4 className="text-xl font-semibold text-gray-900">{alert.title}</h4>
-                  <Badge variant="outline" className={getPriorityColor(alert.priority)}>
-                    {alert.priority.toUpperCase()} PRIORITY
-                  </Badge>
-                </div>
-
-                <p className="text-gray-700 mb-4 leading-relaxed">{alert.message}</p>
-
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <MapPin size={14} />
-                    <span>Target: {alert.target_audience}</span>
-                  </div>
-                  <div>
-                    {new Date(alert.timestamp).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
-                  <Share2 size={16} className="mr-2" />
-                  Share
-                </Button>
-                <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                  <FileText size={16} className="mr-2" />
-                  Edit
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Recommendations */}
-      <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">💡 AI Recommendations</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active Alerts */}
         <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Current Alerts</h3>
+          {advisoryData.current_alerts.map((alert, index) => (
+            <Card key={index} className="p-4 backdrop-blur-md bg-white/5 border-white/10 shadow-lg hover:bg-white/10 transition-colors">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className={`h-5 w-5 ${alert.priority === 'high' ? 'text-rose-500' :
+                      alert.priority === 'medium' ? 'text-amber-500' : 'text-blue-500'
+                    }`} />
+                  <h4 className="font-semibold">{alert.title}</h4>
+                </div>
+                <Badge variant="outline" className={getPriorityColor(alert.priority)}>
+                  {alert.priority}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">{alert.message}</p>
+              <div className="flex justify-between items-center text-xs text-muted-foreground border-t border-white/5 pt-3">
+                <span>Target: {alert.target_audience}</span>
+                <span>{new Date(alert.timestamp).toLocaleTimeString()}</span>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-xs hover:bg-white/10">
+                  <Share2 className="h-3 w-3 mr-1" /> Share
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8 px-2 text-xs hover:bg-white/10">
+                  <FileText className="h-3 w-3 mr-1" /> Details
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        {/* Recommendations */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">AI Recommendations</h3>
           {advisoryData.recommendations.map((rec, index) => (
-            <div key={index} className="p-4 bg-white rounded-lg border border-blue-100">
+            <Card key={index} className="p-4 backdrop-blur-md bg-white/5 border-white/10 shadow-lg">
               <div className="flex items-start gap-3">
-                <div className="p-2 bg-blue-100 rounded-full">
-                  <AlertCircle className="w-4 h-4 text-blue-600" />
+                <div className="p-2 rounded-full bg-indigo-500/10 text-indigo-500">
+                  <Info className="h-5 w-5" />
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900">{rec.category}</h4>
-                  <p className="text-gray-700 mt-1">{rec.advice}</p>
-                  <p className="text-sm text-gray-500 mt-2">Valid: {rec.validity}</p>
+                <div>
+                  <h4 className="font-medium text-indigo-400 mb-1">{rec.category}</h4>
+                  <p className="text-sm text-muted-foreground">{rec.advice}</p>
+                  <p className="text-xs text-muted-foreground/60 mt-2">Valid until: {rec.validity}</p>
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
-        </div>
-      </Card>
 
-      {/* Communication Channels */}
-      <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">📡 Communication Channels</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {advisoryData.communication_channels.map((channel, index) => (
-            <div key={index} className="p-4 bg-white rounded-lg border border-green-100 text-center">
-              <div className="text-2xl mb-2">
-                {channel === 'SMS' && '📱'}
-                {channel === 'Email' && '📧'}
-                {channel === 'Dashboard' && '🖥️'}
-                {channel === 'Public Announcements' && '📣'}
-              </div>
-              <p className="font-medium text-gray-900">{channel}</p>
-              <p className="text-sm text-gray-600">Active</p>
+          {/* Communication Channels */}
+          <div className="mt-6">
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">Active Channels</h3>
+            <div className="flex flex-wrap gap-2">
+              {advisoryData.communication_channels.map((channel, index) => (
+                <Badge key={index} variant="secondary" className="bg-white/10 hover:bg-white/20 text-foreground">
+                  {channel}
+                </Badge>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </Card>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 text-center bg-gradient-to-br from-red-50 to-red-100 border-red-200">
-          <p className="text-2xl font-bold text-red-600">
-            {advisoryData.current_alerts.filter(alert => alert.priority === 'high').length}
-          </p>
-          <p className="text-sm text-gray-700">High Priority Alerts</p>
-        </Card>
-
-        <Card className="p-4 text-center bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200">
-          <p className="text-2xl font-bold text-yellow-600">
-            {advisoryData.current_alerts.filter(alert => alert.priority === 'medium').length}
-          </p>
-          <p className="text-sm text-gray-700">Medium Priority Alerts</p>
-        </Card>
-
-        <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-green-100 border-green-200">
-          <p className="text-2xl font-bold text-green-600">
-            {advisoryData.communication_channels.length}
-          </p>
-          <p className="text-sm text-gray-700">Active Channels</p>
-        </Card>
-      </div>
-
-      <div className="text-center">
-        <p className="text-xs text-gray-500">
-          Data refreshes every 30 seconds • AI-powered advisory system
-        </p>
       </div>
     </div>
   );
 };
+
+export { AdvisoryPanel };

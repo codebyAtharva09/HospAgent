@@ -138,3 +138,10 @@ class SupplyInventoryAgent:
                 })
 
         return optimizations
+
+    def get_reorder_alerts(self):
+        """Get alerts for supplies that need reordering."""
+        # Use a baseline patient count for prediction if no specific forecast is available
+        baseline_patients = 200 
+        predictions = self.predict_consumption(baseline_patients)
+        return self.generate_reorder_alerts(predictions)

@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
+import api from "@/services/api";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
 } from "recharts";
+import { Card } from "@/components/ui/card";
+import { TrendingUp } from "lucide-react";
 
 export default function ForecastChart() {
   const [data, setData] = useState([]);
@@ -11,21 +14,21 @@ export default function ForecastChart() {
   const fetchData = async () => {
     try {
       setError(null);
-      const res = await axios.get("http://localhost:5000/api/forecast");
+      const res = await api.get("/forecast");
       const normalized = res.data.map((item) => ({
         date: new Date(item.date).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric'
         }),
         fullDate: item.date,
-        predicted_inflow: item.predicted_inflow,
-        confidence: item.confidence,
+        predicted_inflow: item.predicted_patients,
+        confidence: item.confidence || 85, // Default confidence if missing
       }));
       setData(normalized);
       setLoading(false);
     } catch (err) {
       console.error("Error fetching forecast:", err);
-      setError("Failed to load forecast data. Please check if the backend is running.");
+      setError("Failed to load forecast data");
       setLoading(false);
     }
   };
@@ -37,133 +40,94 @@ export default function ForecastChart() {
     return () => clearInterval(interval);
   }, []);
 
-
-
-  if (loading) {
-    return (
-      <div className="p-6 bg-white rounded-2xl shadow-lg">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-64 bg-gray-200 rounded mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[...Array(7)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
+  if (loading) return (
+    <div className="flex items-center justify-center h-[400px]">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+        <p className="text-muted-foreground">Loading forecast...</p>
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (error) {
-    return (
-      <div className="p-6 bg-white rounded-2xl shadow-lg">
-        <div className="text-center py-12">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Connection Error</h3>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (error) return (
+    <div className="p-6 text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20 backdrop-blur-sm">
+      <p className="font-semibold mb-2">⚠️ Error Loading Forecast</p>
+      <p className="text-sm">{error}</p>
+    </div>
+  );
 
   return (
-    <div className="p-6 bg-white rounded-2xl shadow-lg">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold text-gray-900">📊 7-Day Patient Flow Forecast</h2>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <p className="text-sm text-gray-500">Live Data</p>
+    <div className="flex flex-col space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-indigo-500" />
+          7-Day Forecast
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+          </span>
+          <span className="text-xs font-medium text-indigo-500">AI Model Active</span>
         </div>
       </div>
 
-      <div className="w-full h-72 mb-6">
+      <div className="h-[300px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <AreaChart data={data} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
             <XAxis
               dataKey="date"
-              stroke="#6b7280"
+              stroke="#888888"
               fontSize={12}
+              tickLine={false}
+              axisLine={false}
             />
             <YAxis
-              yAxisId="left"
-              stroke="#6b7280"
+              stroke="#888888"
               fontSize={12}
-              label={{ value: 'Patients', angle: -90, position: 'insideLeft' }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke="#6b7280"
-              fontSize={12}
-              domain={[0, 100]}
-              label={{ value: 'Confidence %', angle: 90, position: 'insideRight' }}
+              tickLine={false}
+              axisLine={false}
+              domain={[0, 'dataMax + 50']}
+              tickFormatter={(value) => Math.round(value).toString()}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#f9fafb',
-                border: '1px solid #e5e7eb',
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                border: 'none',
                 borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
               }}
-              formatter={(value, name) => [
-                name === 'Predicted Patients' ? `${value} patients` : `${value}%`,
-                name
-              ]}
             />
-            <Legend />
-            <Line
-              yAxisId="left"
+            <Area
               type="monotone"
               dataKey="predicted_inflow"
-              stroke="#3b82f6"
+              stroke="#6366f1"
               strokeWidth={3}
-              name="Predicted Patients"
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+              fillOpacity={1}
+              fill="url(#colorInflow)"
             />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="confidence"
-              stroke="#10b981"
-              strokeWidth={2}
-              name="Confidence (%)"
-              dot={{ fill: '#10b981', strokeWidth: 2, r: 3 }}
-              strokeDasharray="5 5"
-            />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
         {data.map((item, i) => (
           <div
             key={item.fullDate}
-            className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-100 text-center hover:shadow-md transition-shadow"
+            className="p-3 rounded-xl bg-white/5 border border-white/10 text-center hover:bg-white/10 hover:border-indigo-500/30 transition-all duration-300 hover:-translate-y-1 backdrop-blur-sm group"
           >
-            <p className="text-sm font-medium text-gray-600 mb-1">{item.date}</p>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">{item.predicted_inflow}</h3>
-            <p className="text-xs text-gray-500 mb-2">patients expected</p>
-            <div className="flex items-center justify-center space-x-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <p className="text-xs font-medium text-green-600">{item.confidence}%</p>
-            </div>
+            <p className="text-[10px] text-muted-foreground mb-1.5 group-hover:text-indigo-400 transition-colors">{item.date}</p>
+            <p className="text-base font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">{item.predicted_inflow}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">patients</p>
           </div>
         ))}
-      </div>
-
-      <div className="mt-6 text-center">
-        <p className="text-xs text-gray-500">
-          Data refreshes every 30 seconds • Powered by AI forecasting
-        </p>
       </div>
     </div>
   );

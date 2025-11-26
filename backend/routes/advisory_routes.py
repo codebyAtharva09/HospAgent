@@ -3,6 +3,7 @@ from agents.patient_advisory_agent import PatientAdvisoryAgent
 from services.external_api_service import ExternalAPIService
 from db_config import supabase
 import uuid
+from datetime import datetime
 
 advisory_bp = Blueprint('advisory', __name__)
 advisory_agent = PatientAdvisoryAgent()
@@ -40,15 +41,16 @@ def generate_advisory():
     announcements = advisory_agent.create_public_announcement(advisories)
 
     # Save advisories to Supabase
-    try:
-        for advisory in advisories:
-            supabase.table("advisories").insert({
-                "id": str(uuid.uuid4()),
-                "prediction_id": prediction_id,
-                "advisory_text": advisory.get('message', advisory.get('content', 'Advisory generated'))
-            }).execute()
-    except Exception as e:
-        print(f"Failed to save advisories to Supabase: {e}")
+    if supabase:
+        try:
+            for advisory in advisories:
+                supabase.table("advisories").insert({
+                    "id": str(uuid.uuid4()),
+                    "prediction_id": prediction_id,
+                    "advisory_text": advisory.get('message', advisory.get('content', 'Advisory generated'))
+                }).execute()
+        except Exception as e:
+            print(f"Failed to save advisories to Supabase: {e}")
 
     return jsonify({
         'status': 'success',
@@ -146,3 +148,56 @@ def get_advisory_dashboard():
             'festivals_next_week': len([f for f in upcoming_festivals if f['days_until'] <= 7])
         }
     })
+
+@advisory_bp.route('/advisory', methods=['GET'])
+def get_advisory_adapter():
+    """Adapter endpoint for frontend advisory data."""
+    # Get real risks
+    env_data = external_api.get_combined_environmental_data()
+    risks = advisory_agent.assess_health_risks(
+        env_data['pollution']['aqi'],
+        env_data['weather']['temperature'],
+        env_data['weather']['humidity'],
+        env_data['epidemic'],
+        {'crowd_expected': len(env_data['festivals']) > 0}
+    )
+    
+    # Generate full advisory objects from risk keys
+    advisories = advisory_agent.generate_advisory(risks)
+    
+    # Transform to frontend format
+    advisory_data = {
+      "current_alerts": [
+        {
+          "id": i,
+          "type": advisory.get('title', 'Health Risk'),
+          "title": advisory.get('title', 'Health Alert'),
+          "message": advisory.get('message', 'Potential health risk detected'),
+          "priority": advisory.get('severity', 'medium'),
+          "target_audience": "public",
+          "timestamp": datetime.now().isoformat()
+        } for i, advisory in enumerate(advisories)
+      ],
+      "recommendations": [
+        {
+          "category": "General Public",
+          "advice": "Monitor local health advisories",
+          "validity": "24 hours"
+        }
+      ],
+      "communication_channels": ["SMS", "Email", "Dashboard", "Public Announcements"]
+    }
+    
+    # Add some default alerts if none found (to match mock behavior)
+    if not advisory_data['current_alerts']:
+         advisory_data['current_alerts'].append({
+          "id": 1,
+          "type": "Status",
+          "title": "Normal Operations",
+          "message": "No significant health risks detected at this time.",
+          "priority": "low",
+          "target_audience": "public",
+          "timestamp": datetime.now().isoformat()
+        })
+        
+    return jsonify(advisory_data)

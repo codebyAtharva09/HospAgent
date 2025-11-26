@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { AlertTriangle, Bed, Users, Activity, TrendingUp, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useEffect, useState } from "react";
+import api from "@/services/api";
 
 interface MetricCardProps {
   title: string;
@@ -13,30 +14,31 @@ interface MetricCardProps {
 
 const MetricCard = ({ title, value, change, icon: Icon, status = "stable" }: MetricCardProps) => {
   const statusColors = {
-    stable: "text-green-600",
-    warning: "text-yellow-600",
-    critical: "text-red-600",
+    stable: "text-emerald-500",
+    warning: "text-amber-500",
+    critical: "text-rose-500",
   };
 
   const bgColors = {
-    stable: "bg-green-50 border-green-200",
-    warning: "bg-yellow-50 border-yellow-200",
-    critical: "bg-red-50 border-red-200",
+    stable: "bg-emerald-500/10 border-emerald-500/20",
+    warning: "bg-amber-500/10 border-amber-500/20",
+    critical: "bg-rose-500/10 border-rose-500/20",
   };
 
   return (
-    <Card className={`p-6 ${bgColors[status]} shadow-lg hover:shadow-xl transition-shadow border`}>
+    <Card className={`p-6 backdrop-blur-md bg-white/5 border-white/10 shadow-lg hover:bg-white/10 transition-all duration-300 hover:-translate-y-1 group`}>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-gray-600 font-medium">{title}</p>
-          <h3 className="text-3xl font-bold text-gray-900 mt-2">{value}</h3>
+          <p className="text-sm text-muted-foreground font-medium group-hover:text-white transition-colors">{title}</p>
+          <h3 className="text-3xl font-bold mt-2 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">{value}</h3>
           {change && (
-            <p className={`text-sm mt-2 font-medium ${statusColors[status]}`}>
+            <p className={`text-sm mt-2 font-medium ${statusColors[status]} flex items-center gap-1`}>
+              {status === 'stable' ? <TrendingUp className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
               {change}
             </p>
           )}
         </div>
-        <div className={`p-3 rounded-xl ${status === 'critical' ? 'bg-red-100' : status === 'warning' ? 'bg-yellow-100' : 'bg-green-100'}`}>
+        <div className={`p-3 rounded-xl ${bgColors[status]} group-hover:scale-110 transition-transform duration-300`}>
           <Icon className={statusColors[status]} size={24} />
         </div>
       </div>
@@ -53,11 +55,8 @@ export const OverviewPanel = () => {
     const fetchOverviewData = async () => {
       try {
         setError(null);
-        const response = await fetch('http://localhost:5000/api/overview');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const overviewData = await response.json();
+        const response = await api.get('/overview');
+        const overviewData = response.data;
         setData(overviewData);
       } catch (err) {
         console.error('Error fetching overview data:', err);
@@ -197,8 +196,8 @@ export const OverviewPanel = () => {
                       <span className="text-sm text-gray-600">{dept.patients}/{dept.capacity || 100}</span>
                       <Badge variant="outline" className={
                         status === 'critical' ? 'bg-red-100 text-red-800 border-red-200' :
-                        status === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
-                        'bg-green-100 text-green-800 border-green-200'
+                          status === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-200' :
+                            'bg-green-100 text-green-800 border-green-200'
                       }>
                         {dept.status}
                       </Badge>
@@ -206,10 +205,9 @@ export const OverviewPanel = () => {
                   </div>
                   <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        status === 'critical' ? 'bg-red-500' :
+                      className={`h-full rounded-full transition-all ${status === 'critical' ? 'bg-red-500' :
                         status === 'warning' ? 'bg-yellow-500' : 'bg-green-500'
-                      }`}
+                        }`}
                       style={{ width: `${utilizationPercent}%` }}
                     />
                   </div>
