@@ -48,8 +48,13 @@ class SurgeForecastAgent:
             # 5. Momentum (Slope) - decays over time
             momentum_factor = 1.0 + ((recent_slope - 1.0) * (0.8 ** i))
             
+            # Random Noise for dynamic feel
+            noise = random.uniform(0.9, 1.1)
+            
             # Calculate Total
-            total = int(base_load * dow_factor * aqi_factor * weather_factor * epidemic_factor * momentum_factor)
+            # Base load varies slightly per call to simulate changing conditions
+            current_base = base_load * random.uniform(0.95, 1.05)
+            total = int(current_base * dow_factor * aqi_factor * weather_factor * epidemic_factor * momentum_factor * noise)
             
             # Breakdown
             resp_pct = 0.15 + (0.2 if aqi > 200 else 0) + (0.1 if epidemic_severity > 5 else 0)

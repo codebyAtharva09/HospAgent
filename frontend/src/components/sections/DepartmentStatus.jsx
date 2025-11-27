@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import api from "@/services/api";
-import { createClient } from '@supabase/supabase-js';
+
 import { Building2, Users } from "lucide-react";
 
 export const DepartmentStatus = () => {
@@ -9,10 +9,7 @@ export const DepartmentStatus = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Optional: Supabase client for realtime updates
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+
 
   useEffect(() => {
     const fetchDepartmentStatus = async () => {
@@ -38,24 +35,7 @@ export const DepartmentStatus = () => {
 
     fetchDepartmentStatus();
 
-    // Realtime subscription if Supabase is configured
-    if (supabase) {
-      const channel = supabase
-        .channel('department_updates')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'department_status' },
-          (payload) => {
-            console.log('Realtime update:', payload);
-            fetchDepartmentStatus();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [supabase]);
+  }, []);
 
   if (loading) return <div className="p-4 text-muted-foreground animate-pulse">Loading status...</div>;
   if (error) return <div className="p-4 text-rose-500 bg-rose-500/10 rounded-lg border border-rose-500/20">{error}</div>;

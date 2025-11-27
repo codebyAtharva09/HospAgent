@@ -1,48 +1,66 @@
 import React from 'react';
 
-const SupplyCard = ({ supplyPlan }) => {
+interface SupplyItem {
+    item: string;
+    available: number;
+    required: number;
+    status: string; // We will re-compute this for display, but keep for compatibility
+}
+
+interface Props {
+    supplyPlan: SupplyItem[];
+}
+
+const SupplyCard: React.FC<Props> = ({ supplyPlan }) => {
     if (!supplyPlan || supplyPlan.length === 0) return null;
 
-    // Helper to get color based on status
-    const getStatusStyle = (status) => {
-        switch (status) {
-            case 'OK': return { bg: '#DCFCE7', text: '#15803D' };
-            case 'MEDIUM': return { bg: '#FEF9C3', text: '#A16207' };
-            case 'LOW': return { bg: '#FEE2E2', text: '#991B1B' };
-            default: return { bg: '#F3F4F6', text: '#4B5563' };
-        }
+    // Helper to compute status and color
+    const getStatus = (available: number, required: number) => {
+        if (required === 0) return { label: 'OK', bg: '#DCFCE7', text: '#15803D' };
+
+        const ratio = available / required;
+
+        if (ratio >= 1.0) return { label: 'OK', bg: '#DCFCE7', text: '#15803D' };
+        if (ratio >= 0.7) return { label: 'MEDIUM', bg: '#FEF9C3', text: '#A16207' };
+        if (ratio >= 0.4) return { label: 'LOW', bg: '#FED7AA', text: '#C2410C' };
+        return { label: 'CRITICAL', bg: '#FEE2E2', text: '#991B1B' };
     };
 
     return (
         <div className="card">
             <h3 className="card-title">Critical Supplies</h3>
 
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: '0.875rem', textAlign: 'left', borderCollapse: 'collapse' }}>
-                    <thead style={{ fontSize: '0.75rem', color: '#64748B', textTransform: 'uppercase', backgroundColor: '#F8FAFC' }}>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left border-collapse">
+                    <thead className="text-xs text-slate-500 uppercase bg-slate-50">
                         <tr>
-                            <th style={{ padding: '0.5rem 0.75rem' }}>Item</th>
-                            <th style={{ padding: '0.5rem 0.75rem' }}>Required</th>
-                            <th style={{ padding: '0.5rem 0.75rem' }}>Status</th>
+                            <th className="px-3 py-2">Item</th>
+                            <th className="px-3 py-2 text-center">Qty (Avail / Req)</th>
+                            <th className="px-3 py-2 text-right">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {supplyPlan.map((supply, idx) => {
-                            const style = getStatusStyle(supply.status);
+                            // Use backend values if available, otherwise fallback (though backend should provide)
+                            const available = supply.available !== undefined ? supply.available : 0;
+                            const required = supply.required !== undefined ? supply.required : 0;
+
+                            const status = getStatus(available, required);
+
                             return (
-                                <tr key={idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                                    <td style={{ padding: '0.5rem 0.75rem', fontWeight: 500 }}>{supply.item}</td>
-                                    <td style={{ padding: '0.5rem 0.75rem' }}>{supply.required}</td>
-                                    <td style={{ padding: '0.5rem 0.75rem' }}>
-                                        <span style={{
-                                            padding: '0.25rem 0.5rem',
-                                            backgroundColor: style.bg,
-                                            color: style.text,
-                                            borderRadius: '9999px',
-                                            fontSize: '0.625rem',
-                                            fontWeight: 700
-                                        }}>
-                                            {supply.status}
+                                <tr key={idx} className="border-b border-slate-100 last:border-0">
+                                    <td className="px-3 py-3 font-medium text-slate-700">{supply.item}</td>
+                                    <td className="px-3 py-3 text-center text-slate-600">
+                                        <span className="font-semibold">{available}</span>
+                                        <span className="text-slate-400 mx-1">/</span>
+                                        <span>{required}</span>
+                                    </td>
+                                    <td className="px-3 py-3 text-right">
+                                        <span
+                                            className="px-2 py-1 rounded-full text-[10px] font-bold"
+                                            style={{ backgroundColor: status.bg, color: status.text }}
+                                        >
+                                            {status.label}
                                         </span>
                                     </td>
                                 </tr>
@@ -52,11 +70,8 @@ const SupplyCard = ({ supplyPlan }) => {
                 </table>
             </div>
 
-            {/* Show notes from the first LOW status item, or just the first item's note if available */}
-            {supplyPlan.some(s => s.notes) && (
-                <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: '#64748B', fontStyle: 'italic' }}>
-                    Action: {supplyPlan.find(s => s.status === 'LOW')?.notes || supplyPlan[0].notes}
-                </div>
+            {supplyPlan.length === 0 && (
+                <p className="text-center text-slate-400 text-sm py-4">No critical supplies configured.</p>
             )}
         </div>
     );

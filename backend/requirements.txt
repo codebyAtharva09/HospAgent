@@ -5,7 +5,7 @@ numpy
 scikit-learn
 joblib
 pulp
-supabase
+
 python-dotenv
 requests
 google-api-python-client

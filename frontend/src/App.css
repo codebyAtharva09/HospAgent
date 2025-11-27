@@ -601,3 +601,60 @@ body {
     padding: 0 1rem 1rem 1rem;
   }
 }
+/* Live Environment Header */
+.env-header {
+  display: flex;
+  gap: 16px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #f4f7ff;
+  align-items: center;
+  margin-bottom: 16px;
+  border: 1px solid #e0e7ff;
+}
+
+.env-pill {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+}
+
+.env-pill .label {
+  color: #8892a6;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+}
+
+.env-pill .value {
+  font-weight: 700;
+  color: #1f2a4d;
+  font-size: 1.1rem;
+}
+
+/* Live Data Toggle */
+.bg-gray-300 {
+  background-color: #d1d5db !important;
+}
+
+.bg-green-500 {
+  background-color: #10b981 !important;
+}
+
+.toggle-hidden {
+  display: none !important;
+}
+
+/* Live Data Toggle */
+.bg-gray-300 {
+  background-color: #d1d5db !important;
+}
+
+.bg-green-500 {
+  background-color: #10b981 !important;
+}
+
+.toggle-hidden {
+  display: none !important;
+}

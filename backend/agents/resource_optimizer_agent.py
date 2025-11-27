@@ -53,7 +53,8 @@ class ResourceOptimizerAgent:
                 "items": {
                     "oxygen_cylinders": math.ceil(resp * self.OXYGEN_PER_PATIENT),
                     "n95_masks": math.ceil(total * self.MASK_PER_PATIENT),
-                    "iv_fluids": math.ceil(total * self.IV_PER_PATIENT)
+                    "iv_fluids": math.ceil(total * self.IV_PER_PATIENT),
+                    "ppe_kits": math.ceil(total * 3.0)
                 },
                 "action": f"Order {lead_time_days} days in advance" if is_holiday else "Standard Restock"
             })

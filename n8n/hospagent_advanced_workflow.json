@@ -1,0 +1,717 @@
+{
+    "name": "HospAgent SurgeOps Advanced",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 20
+                        }
+                    ]
+                }
+            },
+            "name": "Cron: 20 min",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "triggerTimes": {
+                    "item": [
+                        {
+                            "hour": 7
+                        }
+                    ]
+                }
+            },
+            "name": "Cron: Daily 7am",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "mode",
+                            "value": "operational"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Set Mode: Operational",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "mode",
+                            "value": "daily"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Set Mode: Daily",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                300,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:8000/api/command-center",
+                "options": {},
+                "continueOnFail": true
+            },
+            "name": "Fetch Command Center",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                550,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$node[\"Fetch Command Center\"].json[\"error\"] ? true : false}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Check for Error",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                750,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "🚨 SYSTEM ERROR: HospAgent Data Unavailable",
+                "text": "The HospAgent Command Center API could not be reached.\n\nPlease check the backend server status immediately."
+            },
+            "name": "Email: System Down",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                950,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{$node[\"Set Mode: Operational\"].json[\"mode\"] ? $node[\"Set Mode: Operational\"].json[\"mode\"] : $node[\"Set Mode: Daily\"].json[\"mode\"]}}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "operational",
+                            "output": 0
+                        },
+                        {
+                            "value2": "daily",
+                            "output": 1
+                        }
+                    ]
+                }
+            },
+            "name": "Switch Mode",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                950,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "env.aqi",
+                            "operation": "larger",
+                            "value": 250
+                        }
+                    ]
+                }
+            },
+            "name": "IF: AQI > 250",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\nconst aqi = data.env.aqi;\nconst riskLevel = data.risk.level;\n\nlet recommendation = \"Monitor situation.\";\nif (aqi > 300) {\n  recommendation = \"URGENT: Increase respiratory staff by 20% and verify oxygen cylinder stock.\";\n} else {\n  recommendation = \"Prepare for potential respiratory case surge.\";\n}\n\nreturn [{\n  json: {\n    subject: `⚠ AQI SURGE ALERT: ${aqi}`,\n    message: `High Pollution Detected.\\nAQI: ${aqi}\\nRisk Level: ${riskLevel}\\n\\nAnalysis: ${data.risk_analysis.reasons.join(', ')}\\n\\nRecommendation: ${recommendation}`,\n    type: \"AQI_SURGE\",\n    severity: \"HIGH\"\n  }\n}];"
+            },
+            "name": "Build AQI Msg",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "field": "festival.is_tomorrow",
+                            "value": true
+                        }
+                    ]
+                }
+            },
+            "name": "IF: Festival Tomorrow",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\nconst fest = data.festival;\n\nconst recommendation = \"Activate Festival Surge Protocol. Prioritize ER, trauma, and ambulance readiness.\";\n\nreturn [{\n  json: {\n    subject: `🎉 FESTIVAL ALERT: ${fest.name} Tomorrow`,\n    message: `Festival Warning: ${fest.name} is tomorrow.\\nRisk Level: ${fest.risk_level}\\n\\nAdvisory: ${fest.advisory || 'Expect increased traffic and trauma cases.'}\\n\\nRecommendation: ${recommendation}`,\n    type: \"FESTIVAL_RISK\",\n    severity: \"WARN\"\n  }\n}];"
+            },
+            "name": "Build Festival Msg",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const supplies = items[0].json.supplies.status;\nconst lowItems = [];\n\nfor (const [item, status] of Object.entries(supplies)) {\n  if (status === 'LOW' || status === 'CRITICAL') {\n    lowItems.push({ item, status });\n  }\n}\n\nif (lowItems.length > 0) {\n  const itemText = lowItems.map(i => `- ${i.item}: ${i.status}`).join('\\n');\n  return [{\n    json: {\n      subject: \"📦 CRITICAL SUPPLY ALERT\",\n      message: `The following items are running low:\\n${itemText}\\n\\nRecommendation: Reorder immediately and contact alternate suppliers.`,\n      type: \"SUPPLY_SHORTAGE\",\n      severity: \"CRITICAL\"\n    }\n  }];\n}\n\nreturn [];"
+            },
+            "name": "Check Supplies",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "staffing.today.shortage.doctors",
+                            "operation": "larger",
+                            "value": 0
+                        },
+                        {
+                            "field": "staffing.today.shortage.nurses",
+                            "operation": "larger",
+                            "value": 0
+                        }
+                    ]
+                },
+                "combineOperation": "any"
+            },
+            "name": "IF: Staff Shortage",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\nconst docs = data.staffing.today.shortage.doctors;\nconst nurses = data.staffing.today.shortage.nurses;\n\nconst recommendation = \"Recommend calling locum doctors and rescheduling non-urgent OPD.\";\n\nreturn [{\n  json: {\n    subject: \"👨‍⚕️ STAFF SHORTAGE ALERT\",\n    message: `Staffing Gaps Detected for Today:\\nDoctors Short: ${docs}\\nNurses Short: ${nurses}\\n\\nRecommendation: ${recommendation}`,\n    type: \"STAFF_SHORTAGE\",\n    severity: \"WARN\"\n  }\n}];"
+            },
+            "name": "Build Staff Msg",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "risk.index",
+                            "operation": "largerEqual",
+                            "value": 75
+                        }
+                    ],
+                    "string": [
+                        {
+                            "field": "risk.level",
+                            "value": "CRITICAL"
+                        }
+                    ]
+                },
+                "combineOperation": "any"
+            },
+            "name": "IF: High Risk",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                900
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\n\nconst recommendation = \"Activate High Surge Protocol. Cancel elective surgeries and expand ICU capacity.\";\n\nreturn [{\n  json: {\n    subject: `🚨 CRITICAL RISK ALERT: Index ${data.risk.index}`,\n    message: `Hospital Risk is CRITICAL.\\nIndex: ${data.risk.index}\\nLevel: ${data.risk.level}\\n\\nReasons: ${data.risk_analysis.reasons.join(', ')}\\n\\nForecast Peak Load: ${data.forecast.peak_load} patients\\n\\nRecommendation: ${recommendation}`,\n    type: \"HIGH_RISK\",\n    severity: \"CRITICAL\"\n  }\n}];"
+            },
+            "name": "Build Risk Msg",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                900
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\n\nconst summary = `\n🏥 HospAgent Daily Ops Brief - ${new Date().toLocaleDateString()}\n\n📊 Risk Level: ${data.risk.level} (Index: ${data.risk.index})\n🌡️ AQI: ${data.env.aqi}\n\n🔮 Forecast:\n- Today: ${data.forecast.today_patients} patients\n- Tomorrow: ${data.forecast.tomorrow_patients} patients\n\n🚨 Critical Issues:\n- Staff Shortage: ${data.staffing.today.shortage.doctors} Docs, ${data.staffing.today.shortage.nurses} Nurses\n- Low Supplies: ${Object.entries(data.supplies.status).filter(([k,v]) => v !== 'OK').map(([k,v]) => k).join(', ') || 'None'}\n\n📅 Upcoming Festivals:\n${data.festival.is_tomorrow ? '- ' + data.festival.name + ' (TOMORROW)' : '- None immediate'}\n`;\n\nreturn [{ json: { subject: `Daily Ops Brief - ${new Date().toLocaleDateString()}`, message: summary } }];"
+            },
+            "name": "Build Daily Summary",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1200,
+                1100
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "er_head@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: AQI Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: Festival Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "store_manager@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: Supply Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "hr@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: Staff Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "director@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: Risk Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                900
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"message\"]}}"
+            },
+            "name": "Email: Daily Summary",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1600,
+                1100
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:8000/api/alerts/log",
+                "method": "POST",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "type",
+                            "value": "={{$json[\"type\"]}}"
+                        },
+                        {
+                            "name": "message",
+                            "value": "={{$json[\"message\"]}}"
+                        },
+                        {
+                            "name": "severity",
+                            "value": "={{$json[\"severity\"]}}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Log Alert",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                1850,
+                500
+            ]
+        }
+    ],
+    "connections": {
+        "Cron: 20 min": {
+            "main": [
+                [
+                    {
+                        "node": "Set Mode: Operational",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Cron: Daily 7am": {
+            "main": [
+                [
+                    {
+                        "node": "Set Mode: Daily",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Mode: Operational": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Command Center",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Mode: Daily": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Command Center",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Command Center": {
+            "main": [
+                [
+                    {
+                        "node": "Check for Error",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check for Error": {
+            "main": [
+                [
+                    {
+                        "node": "Email: System Down",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Switch Mode",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Switch Mode": {
+            "main": [
+                [
+                    {
+                        "node": "IF: AQI > 250",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: Festival Tomorrow",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Supplies",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: Staff Shortage",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: High Risk",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Build Daily Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: AQI > 250": {
+            "main": [
+                [
+                    {
+                        "node": "Build AQI Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build AQI Msg": {
+            "main": [
+                [
+                    {
+                        "node": "Email: AQI Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email: AQI Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: Festival Tomorrow": {
+            "main": [
+                [
+                    {
+                        "node": "Build Festival Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Festival Msg": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Festival Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email: Festival Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Supplies": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Supply Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email: Supply Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: Staff Shortage": {
+            "main": [
+                [
+                    {
+                        "node": "Build Staff Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Staff Msg": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Staff Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email: Staff Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: High Risk": {
+            "main": [
+                [
+                    {
+                        "node": "Build Risk Msg",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Risk Msg": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Risk Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Email: Risk Alert": {
+            "main": [
+                [
+                    {
+                        "node": "Log Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Daily Summary": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Daily Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -1,0 +1,480 @@
+{
+    "name": "HospAgent SurgeOps Automation",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 20
+                        }
+                    ]
+                }
+            },
+            "name": "Cron: 20 min",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "triggerTimes": {
+                    "item": [
+                        {
+                            "hour": 7
+                        }
+                    ]
+                }
+            },
+            "name": "Cron: Daily 7am",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "mode",
+                            "value": "operational"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Set Mode: Operational",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "values": {
+                    "string": [
+                        {
+                            "name": "mode",
+                            "value": "daily"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Set Mode: Daily",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 1,
+            "position": [
+                300,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:8000/api/command-center",
+                "options": {}
+            },
+            "name": "Fetch Command Center",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                550,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{$node[\"Set Mode: Operational\"].json[\"mode\"]}}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "operational",
+                            "output": 0
+                        },
+                        {
+                            "value2": "daily",
+                            "output": 1
+                        }
+                    ]
+                }
+            },
+            "name": "Switch Mode",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                750,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "env.aqi",
+                            "operation": "larger",
+                            "value": 250
+                        }
+                    ]
+                }
+            },
+            "name": "IF: AQI > 250",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "field": "festival.is_tomorrow",
+                            "value": true
+                        }
+                    ]
+                }
+            },
+            "name": "IF: Festival Tomorrow",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "// Check for LOW or CRITICAL supplies\nconst supplies = items[0].json.supplies.status;\nconst lowItems = [];\n\nfor (const [item, status] of Object.entries(supplies)) {\n  if (status === 'LOW' || status === 'CRITICAL') {\n    lowItems.push({ item, status });\n  }\n}\n\nif (lowItems.length > 0) {\n  return [{ json: { lowItems } }];\n}\n\nreturn [];"
+            },
+            "name": "Check Supplies",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "staffing.today.shortage.doctors",
+                            "operation": "larger",
+                            "value": 0
+                        },
+                        {
+                            "field": "staffing.today.shortage.nurses",
+                            "operation": "larger",
+                            "value": 0
+                        }
+                    ]
+                },
+                "combineOperation": "any"
+            },
+            "name": "IF: Staff Shortage",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "field": "risk.index",
+                            "operation": "largerEqual",
+                            "value": 75
+                        }
+                    ]
+                }
+            },
+            "name": "IF: High Risk",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                900
+            ]
+        },
+        {
+            "parameters": {
+                "functionCode": "const data = items[0].json;\n\nconst summary = `\n🏥 HospAgent Daily Ops Brief - ${new Date().toLocaleDateString()}\n\n📊 Risk Level: ${data.risk.level} (Index: ${data.risk.index})\n🌡️ AQI: ${data.env.aqi}\n\n🔮 Forecast:\n- Today: ${data.forecast.today_patients} patients\n- Tomorrow: ${data.forecast.tomorrow_patients} patients\n\n🚨 Critical Issues:\n- Staff Shortage: ${data.staffing.today.shortage.doctors} Docs, ${data.staffing.today.shortage.nurses} Nurses\n- Low Supplies: ${Object.entries(data.supplies.status).filter(([k,v]) => v !== 'OK').map(([k,v]) => k).join(', ') || 'None'}\n\n📅 Upcoming Festivals:\n${data.festival.is_tomorrow ? '- ' + data.festival.name + ' (TOMORROW)' : '- None immediate'}\n`;\n\nreturn [{ json: { subject: `Daily Ops Brief - ${new Date().toLocaleDateString()}`, text: summary } }];"
+            },
+            "name": "Build Daily Summary",
+            "type": "n8n-nodes-base.function",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                1100
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "er_head@hospital.com",
+                "subject": "⚠ AQI SURGE ALERT: AQI {{$json[\"env\"][\"aqi\"]}}",
+                "text": "High Pollution Detected.\nAQI: {{$json[\"env\"][\"aqi\"]}}\nRisk Level: {{$json[\"risk\"][\"level\"]}}\n\nRecommendation: Increase ER respiratory staff and check oxygen reserves."
+            },
+            "name": "Email: AQI Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "🎉 FESTIVAL ALERT: {{$json[\"festival\"][\"name\"]}} Tomorrow",
+                "text": "Festival Warning.\nEvent: {{$json[\"festival\"][\"name\"]}}\nRisk Level: {{$json[\"festival\"][\"risk_level\"]}}\n\nRecommendation: Activate Festival Surge Protocol."
+            },
+            "name": "Email: Festival Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "store_manager@hospital.com",
+                "subject": "📦 SUPPLY ALERT: Critical Shortages",
+                "text": "The following items are low:\n{{$json[\"lowItems\"].map(i => `- ${i.item}: ${i.status}`).join('\\n')}}\n\nRecommendation: Reorder immediately."
+            },
+            "name": "Email: Supply Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "hr@hospital.com",
+                "subject": "👨‍⚕️ STAFF SHORTAGE ALERT",
+                "text": "Staffing Gaps Detected.\nDoctors Short: {{$json[\"staffing\"][\"today\"][\"shortage\"][\"doctors\"]}}\nNurses Short: {{$json[\"staffing\"][\"today\"][\"shortage\"][\"nurses\"]}}\n\nRecommendation: Call off-duty staff."
+            },
+            "name": "Email: Staff Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "director@hospital.com",
+                "subject": "🚨 CRITICAL RISK ALERT: Index {{$json[\"risk\"][\"index\"]}}",
+                "text": "Hospital Risk is CRITICAL.\nIndex: {{$json[\"risk\"][\"index\"]}}\nLevel: {{$json[\"risk\"][\"level\"]}}\n\nReasons: {{$json[\"risk_analysis\"][\"reasons\"].join(', ')}}\n\nRecommendation: Activate High Surge Protocol."
+            },
+            "name": "Email: Risk Alert",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                900
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "={{$json[\"subject\"]}}",
+                "text": "={{$json[\"text\"]}}"
+            },
+            "name": "Email: Daily Summary",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                1100
+            ]
+        }
+    ],
+    "connections": {
+        "Cron: 20 min": {
+            "main": [
+                [
+                    {
+                        "node": "Set Mode: Operational",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Cron: Daily 7am": {
+            "main": [
+                [
+                    {
+                        "node": "Set Mode: Daily",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Mode: Operational": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Command Center",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Mode: Daily": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Command Center",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Command Center": {
+            "main": [
+                [
+                    {
+                        "node": "Switch Mode",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Switch Mode": {
+            "main": [
+                [
+                    {
+                        "node": "IF: AQI > 250",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: Festival Tomorrow",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Supplies",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: Staff Shortage",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF: High Risk",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Build Daily Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: AQI > 250": {
+            "main": [
+                [
+                    {
+                        "node": "Email: AQI Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: Festival Tomorrow": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Festival Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Supplies": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Supply Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: Staff Shortage": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Staff Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF: High Risk": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Risk Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Daily Summary": {
+            "main": [
+                [
+                    {
+                        "node": "Email: Daily Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

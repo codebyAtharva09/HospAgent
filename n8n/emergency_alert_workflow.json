@@ -1,0 +1,291 @@
+{
+    "name": "HospAgent Emergency Alerts",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 20
+                        }
+                    ]
+                }
+            },
+            "name": "Cron Trigger",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "url": "http://localhost:8000/api/alerts/trigger",
+                "options": {}
+            },
+            "name": "Fetch Alerts",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 1,
+            "position": [
+                300,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "fieldToSplitOut": "alerts",
+                "options": {}
+            },
+            "name": "Split Alerts",
+            "type": "n8n-nodes-base.itemLists",
+            "typeVersion": 1,
+            "position": [
+                500,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"type\"]}}",
+                            "value2": "AQI_SURGE"
+                        }
+                    ]
+                }
+            },
+            "name": "IF AQI Surge",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                750,
+                100
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"type\"]}}",
+                            "value2": "FESTIVAL_RISK"
+                        }
+                    ]
+                }
+            },
+            "name": "IF Festival",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                750,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"type\"]}}",
+                            "value2": "SUPPLY_SHORTAGE"
+                        }
+                    ]
+                }
+            },
+            "name": "IF Supply",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                750,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "string": [
+                        {
+                            "value1": "={{$json[\"type\"]}}",
+                            "value2": "STAFF_SHORTAGE"
+                        }
+                    ]
+                }
+            },
+            "name": "IF Staff",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                750,
+                700
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "🚨 AQI ALERT: {{$json[\"title\"]}}",
+                "text": "Severity: {{$json[\"severity\"]}}\nMessage: {{$json[\"message\"]}}\nRecommendation: {{$json[\"recommendation\"]}}"
+            },
+            "name": "Send Email (AQI)",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                80
+            ]
+        },
+        {
+            "parameters": {
+                "message": "🚨 {{$json[\"title\"]}}: {{$json[\"message\"]}} - {{$json[\"recommendation\"]}}"
+            },
+            "name": "Send SMS (AQI)",
+            "type": "n8n-nodes-base.smsTwilio",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "fromEmail": "alerts@hospagent.com",
+                "toEmail": "admin@hospital.com",
+                "subject": "🎉 FESTIVAL ALERT: {{$json[\"title\"]}}",
+                "text": "Severity: {{$json[\"severity\"]}}\nMessage: {{$json[\"message\"]}}\nRecommendation: {{$json[\"recommendation\"]}}"
+            },
+            "name": "Send Email (Festival)",
+            "type": "n8n-nodes-base.email",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "message": "⚠ SUPPLY ALERT: {{$json[\"message\"]}} - {{$json[\"recommendation\"]}}"
+            },
+            "name": "Send WhatsApp (Supply)",
+            "type": "n8n-nodes-base.whatsapp",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "message": "👨‍⚕️ STAFF ALERT: {{$json[\"message\"]}} - {{$json[\"recommendation\"]}}"
+            },
+            "name": "Send SMS (Staff)",
+            "type": "n8n-nodes-base.smsTwilio",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                700
+            ]
+        }
+    ],
+    "connections": {
+        "Cron Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Fetch Alerts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Fetch Alerts": {
+            "main": [
+                [
+                    {
+                        "node": "Split Alerts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Split Alerts": {
+            "main": [
+                [
+                    {
+                        "node": "IF AQI Surge",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF Festival",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF Supply",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "IF Staff",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF AQI Surge": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email (AQI)",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Send SMS (AQI)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Festival": {
+            "main": [
+                [
+                    {
+                        "node": "Send Email (Festival)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Supply": {
+            "main": [
+                [
+                    {
+                        "node": "Send WhatsApp (Supply)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IF Staff": {
+            "main": [
+                [
+                    {
+                        "node": "Send SMS (Staff)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

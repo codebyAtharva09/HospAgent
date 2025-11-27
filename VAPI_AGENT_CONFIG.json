@@ -1,0 +1,142 @@
+{
+    "name": "HospAgent SurgeOps Assistant",
+    "model": {
+        "provider": "openai",
+        "model": "gpt-4-turbo",
+        "messages": [
+            {
+                "role": "system",
+                "content": "You are HospAgent SurgeOps Voice Assistant — an AI operations partner for hospital administrators, ER managers, and hospital command-center staff in India. Your job is to explain surge risks, interpret forecast data, recommend staffing actions, analyze critical supplies, and use hospital capacity limits when giving all recommendations. You must ALWAYS use the available tools: risk-summary, staffing-summary, supplies-summary, and hospital-overview. If asked for personal medical advice, politely refuse and redirect them to hospital staff. Speak in natural conversational tone, like a colleague, and keep replies concise. Never hallucinate. Never leave the domain of hospital operations."
+            }
+        ]
+    },
+    "voice": {
+        "provider": "11labs",
+        "voiceId": "sarah"
+    },
+    "firstMessage": "HospAgent SurgeOps online. I am ready to assist with hospital operations.",
+    "recordingEnabled": true,
+    "transcriber": {
+        "provider": "deepgram",
+        "model": "nova-2",
+        "language": "en"
+    },
+    "tools": [
+        {
+            "type": "function",
+            "messages": [
+                {
+                    "type": "request-start",
+                    "content": "Checking risk levels..."
+                },
+                {
+                    "type": "request-complete",
+                    "content": "Risk data received."
+                },
+                {
+                    "type": "request-failed",
+                    "content": "I couldn't fetch the risk data."
+                }
+            ],
+            "function": {
+                "name": "risk-summary",
+                "description": "Get current hospital risk index, level, environmental data (AQI), and explanation factors.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            "server": {
+                "url": "<YOUR_NGROK_URL>/api/risk"
+            }
+        },
+        {
+            "type": "function",
+            "messages": [
+                {
+                    "type": "request-start",
+                    "content": "Analyzing staffing..."
+                },
+                {
+                    "type": "request-complete",
+                    "content": "Staffing analysis complete."
+                },
+                {
+                    "type": "request-failed",
+                    "content": "I couldn't access staffing records."
+                }
+            ],
+            "function": {
+                "name": "staffing-summary",
+                "description": "Get required vs available doctors and nurses for today and tomorrow, including shortages.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            "server": {
+                "url": "<YOUR_NGROK_URL>/api/staffing"
+            }
+        },
+        {
+            "type": "function",
+            "messages": [
+                {
+                    "type": "request-start",
+                    "content": "Checking supplies..."
+                },
+                {
+                    "type": "request-complete",
+                    "content": "Supply status updated."
+                },
+                {
+                    "type": "request-failed",
+                    "content": "Supply inventory is unreachable."
+                }
+            ],
+            "function": {
+                "name": "supplies-summary",
+                "description": "Get status of critical supplies (Oxygen, Masks, PPE, etc.) as LOW, MEDIUM, or OK.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            "server": {
+                "url": "<YOUR_NGROK_URL>/api/supplies"
+            }
+        },
+        {
+            "type": "function",
+            "messages": [
+                {
+                    "type": "request-start",
+                    "content": "Retrieving hospital capacity..."
+                },
+                {
+                    "type": "request-complete",
+                    "content": "Capacity data loaded."
+                },
+                {
+                    "type": "request-failed",
+                    "content": "Capacity data unavailable."
+                }
+            ],
+            "function": {
+                "name": "hospital-overview",
+                "description": "Get total hospital capacity including beds, ICUs, doctors, nurses, and equipment.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            "server": {
+                "url": "<YOUR_NGROK_URL>/api/hospital-overview"
+            }
+        }
+    ]
+}

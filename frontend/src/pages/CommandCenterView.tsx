@@ -6,7 +6,9 @@ import {
     ArrowLeft, Clock, ShieldAlert, Thermometer
 } from 'lucide-react';
 
-const API_BASE = 'http://localhost:8000';
+import { HospAgentVoiceButton } from '../components/HospAgentVoiceButton';
+import { AlertsFeed } from '../components/sections/AlertsFeed';
+import { getCommandCenter } from '../api/commandCenter';
 
 const CommandCenterView = () => {
     const navigate = useNavigate();
@@ -16,12 +18,12 @@ const CommandCenterView = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch(`${API_BASE}/api/predict/live`);
-                const json = await res.json();
+                const json = await getCommandCenter("live");
                 setData(json);
                 setLoading(false);
             } catch (err) {
                 console.error(err);
+                setLoading(false);
             }
         };
         fetchData();
@@ -32,11 +34,11 @@ const CommandCenterView = () => {
     if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500">Loading Command Center...</div>;
 
     const riskLevel = data?.risk?.level || 'UNKNOWN';
-    const riskScore = data?.risk?.hospital_risk_index || 0;
-    const aqi = data?.env?.aqi_number || 0;
-    const temp = data?.env?.temperature_c || 0;
-    const staffing = data?.staffing?.[0] || {};
-    const explanation = data?.risk?.explanations?.[0] || "System operating normally";
+    const riskScore = data?.risk?.index || 0;
+    const aqi = data?.env?.aqi || 0;
+    const temp = data?.env?.temp_c || 0;
+    const staffing = data?.staffing?.today?.required || {};
+    const explanation = data?.risk_analysis?.factors?.[0] || "System operating normally. No critical alerts.";
 
     const getRiskColor = (level: string) => {
         if (level === 'CRITICAL') return 'text-red-500 border-red-500 bg-red-500/10';
@@ -64,6 +66,9 @@ const CommandCenterView = () => {
                             <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                             LIVE OPERATIONS • MUMBAI GOREGAON
                         </p>
+                    </div>
+                    <div className="ml-8">
+                        <HospAgentVoiceButton />
                     </div>
                 </div>
                 <div className="text-right">
@@ -100,7 +105,7 @@ const CommandCenterView = () => {
                                 <span className="text-sm font-bold">LIVE AQI</span>
                             </div>
                             <div className="text-5xl font-bold text-blue-400">{aqi}</div>
-                            <div className="text-xs text-slate-500">PM2.5: {data?.env?.pollutants?.pm2_5}</div>
+                            <div className="text-xs text-slate-500">PM2.5: {data?.env?.pm25}</div>
                         </div>
                         <div className="bg-slate-900/50 rounded-2xl border border-slate-800 p-6 flex flex-col justify-between">
                             <div className="flex items-center gap-2 text-slate-400">
@@ -108,7 +113,7 @@ const CommandCenterView = () => {
                                 <span className="text-sm font-bold">TEMP</span>
                             </div>
                             <div className="text-5xl font-bold text-orange-400">{temp}°C</div>
-                            <div className="text-xs text-slate-500 capitalize">{data?.env?.weather_desc}</div>
+                            <div className="text-xs text-slate-500 capitalize">{data?.env?.weather_label}</div>
                         </div>
                     </div>
                 </div>
@@ -166,42 +171,9 @@ const CommandCenterView = () => {
                     </div>
                 </div>
 
-                {/* Right Column: Alerts & Supplies */}
-                <div className="col-span-3 flex flex-col gap-6">
-                    {/* Festival Alert */}
-                    {data?.festivals?.some((f: any) => f.is_high_risk) ? (
-                        <div className="bg-red-900/20 border border-red-500/50 rounded-2xl p-6 animate-pulse">
-                            <div className="flex items-center gap-3 mb-2">
-                                <AlertTriangle className="w-6 h-6 text-red-500" />
-                                <h3 className="text-red-500 font-bold uppercase">High Risk Event</h3>
-                            </div>
-                            <p className="text-red-200 text-lg font-bold">
-                                {data.festivals.find((f: any) => f.is_high_risk)?.name}
-                            </p>
-                            <p className="text-red-400 text-sm mt-1">Surge protocols recommended</p>
-                        </div>
-                    ) : (
-                        <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 opacity-50">
-                            <h3 className="text-slate-500 font-bold uppercase">No Major Events</h3>
-                        </div>
-                    )}
-
-                    {/* Supply Status */}
-                    <div className="flex-1 bg-slate-900/50 border border-slate-800 rounded-2xl p-6">
-                        <h3 className="text-slate-400 font-bold uppercase tracking-wider mb-6">Critical Supplies</h3>
-                        <div className="space-y-4">
-                            {data?.supplies?.map((s: any, i: number) => (
-                                <div key={i} className="flex justify-between items-center p-3 bg-slate-800/50 rounded-xl border border-slate-700">
-                                    <span className="font-medium">{s.item}</span>
-                                    <span className={`px-2 py-1 rounded text-xs font-bold ${s.status === 'OK' ? 'bg-green-500/20 text-green-400' :
-                                            s.status === 'LOW' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'
-                                        }`}>
-                                        {s.status}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                {/* Right Column: Alerts Feed */}
+                <div className="col-span-3 h-full">
+                    <AlertsFeed />
                 </div>
 
             </div>

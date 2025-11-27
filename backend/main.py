@@ -49,6 +49,12 @@ app.include_router(predict.router, prefix="/api")
 app.include_router(festivals.router, prefix="/api")
 app.include_router(ai_command.router, prefix="/api")
 
+from routers import alerts
+app.include_router(alerts.router, prefix="/api")
+
+from routers import vapi_tools
+app.include_router(vapi_tools.router, prefix="/api")
+
 # --- Data Models ---
 class LivePredictionResponse(BaseModel):
     env: Dict[str, Any]
