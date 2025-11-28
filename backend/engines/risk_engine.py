@@ -4,7 +4,20 @@ Computes real-time risk scores based on environmental and operational factors
 """
 
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List, Literal
+import json
+import os
+from pydantic import BaseModel
+
+class SeasonalDiseaseSummary(BaseModel):
+    active_diseases: List[str]
+    seasonal_risk_index: float  # 0–1
+    commentary: str
+
+class EpidemicSummary(BaseModel):
+    epidemic_index: float       # 0–1
+    level: Literal["LOW", "MODERATE", "HIGH", "CRITICAL"]
+    reason: str
 
 class RiskEngine:
     """
@@ -15,12 +28,12 @@ class RiskEngine:
     def __init__(self):
         # Risk weights (tunable)
         self.WEIGHTS = {
-            'aqi': 0.25,
-            'patient_slope': 0.20,
-            'epidemic': 0.15,
+            'aqi': 0.20,
+            'patient_slope': 0.15,
+            'epidemic': 0.20,
             'festival': 0.15,
             'icu_pressure': 0.15,
-            'weather': 0.10
+            'seasonal': 0.15
         }
         
         # Thresholds
@@ -28,6 +41,15 @@ class RiskEngine:
         self.AQI_HIGH = 200
         self.ICU_CRITICAL = 0.85
         self.ICU_HIGH = 0.70
+        
+        # Load seasonal config
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), '../data/seasonal_config.json')
+            with open(config_path, 'r') as f:
+                self.seasonal_config = json.load(f)
+        except Exception as e:
+            print(f"Error loading seasonal config: {e}")
+            self.seasonal_config = {"disease_factors": [], "epidemic_default": 0.1}
         
     def calculate_comprehensive_risk(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -71,6 +93,13 @@ class RiskEngine:
         icu_score = self._calculate_icu_risk(icu_occ)
         weather_score = self._calculate_weather_risk(temp, humidity)
         
+        # Seasonal Risk
+        seasonal_summary = self._calculate_seasonal_risk()
+        seasonal_score = seasonal_summary.seasonal_risk_index * 100
+        
+        # Epidemic Summary
+        epidemic_summary = self._generate_epidemic_summary(epidemic)
+
         # Weighted composite score
         composite_risk = (
             self.WEIGHTS['aqi'] * aqi_score +
@@ -78,7 +107,7 @@ class RiskEngine:
             self.WEIGHTS['epidemic'] * epidemic_score +
             self.WEIGHTS['festival'] * festival_score +
             self.WEIGHTS['icu_pressure'] * icu_score +
-            self.WEIGHTS['weather'] * weather_score
+            self.WEIGHTS['seasonal'] * seasonal_score
         )
         
         # Generate explanations
@@ -106,14 +135,18 @@ class RiskEngine:
         return {
             'timestamp': datetime.utcnow().isoformat() + 'Z',
             'hospital_risk_index': int(composite_risk),
+            'index': int(composite_risk), # Alias for frontend
             'level': level,
             'breakdown': {
                 'aqi_risk': int(aqi_score),
                 'icu_risk': int(icu_score),
                 'respiratory_risk': int((aqi_score + weather_score) / 2),
                 'epidemic_risk': int(epidemic_score),
-                'surge_risk': int(slope_score)
+                'surge_risk': int(slope_score),
+                'seasonal_risk': int(seasonal_score)
             },
+            'seasonal': seasonal_summary.dict(),
+            'epidemic': epidemic_summary.dict(),
             'contributing_factors': factors,
             'department_risks': dept_risks,
             'supply_risks': supply_risks,
@@ -316,6 +349,46 @@ class RiskEngine:
         else:
             return "MINIMAL"
     
+    def _calculate_seasonal_risk(self) -> SeasonalDiseaseSummary:
+        current_month = datetime.now().month
+        active_diseases = []
+        total_risk = 0.0
+        
+        for disease in self.seasonal_config.get("disease_factors", []):
+            if current_month in disease["months"]:
+                active_diseases.append(disease["name"])
+                total_risk += disease["base_risk"]
+        
+        # Cap at 1.0
+        total_risk = min(1.0, total_risk)
+        
+        commentary = "No major seasonal risks."
+        if active_diseases:
+            commentary = f"Active seasonal risks: {', '.join(active_diseases)}"
+            
+        return SeasonalDiseaseSummary(
+            active_diseases=active_diseases,
+            seasonal_risk_index=total_risk,
+            commentary=commentary
+        )
+
+    def _generate_epidemic_summary(self, index: float) -> EpidemicSummary:
+        # index is 0-10 usually from input, let's normalize or use as is
+        # If input is 0-10, we map to levels
+        level = "LOW"
+        if index >= 8:
+            level = "CRITICAL"
+        elif index >= 6:
+            level = "HIGH"
+        elif index >= 4:
+            level = "MODERATE"
+            
+        return EpidemicSummary(
+            epidemic_index=index/10.0 if index > 1 else index, # Normalize if needed, assuming input might be 0-10
+            level=level,
+            reason=f"Epidemic index at {index}"
+        )
+
     def _calculate_burnout_count(self, patients: int, icu_occ: float) -> int:
         """
         Calculate number of staff at high burnout risk.

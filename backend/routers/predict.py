@@ -9,7 +9,9 @@ from services.festival_repository import FestivalRepository
 from engines.risk_engine import RiskEngine
 from engines.forecast_engine import ForecastEngine
 from engines.staffing_engine import StaffingEngine
+from engines.staffing_engine import StaffingEngine
 from engines.supply_engine import SupplyEngine
+from services.data_loader import data_loader
 
 router = APIRouter(prefix="/predict", tags=["prediction"])
 
@@ -30,6 +32,7 @@ class LiveResponse(BaseModel):
     staffing: List[Dict[str, Any]] = []
     supplies: List[Dict[str, Any]] = []
     festivals: List[Dict[str, Any]] = []
+    hospital_overview: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
 
 @router.get("/live", response_model=LiveResponse)
@@ -38,75 +41,124 @@ async def predict_live(
 ) -> LiveResponse:
     """
     Complete live prediction pipeline with festival, staffing, and supplies.
-
     Returns a JSON with env, risk, forecast, staffing, supplies, festivals.
+    Robustly handles partial failures.
     """
+    # Initialize defaults
+    real_env = None
+    festivals = []
+    risk_result = None
+    forecast_result = []
+    staffing_result = []
+    supply_result = []
+    hospital_overview = None
+    errors = []
+
+    # 1. Fetch live environmental data
     try:
-        # 1. Fetch live environmental data
-        # This now raises an exception if API fails
         real_env = await env_client.get_live_data()
+    except Exception as e:
+        print(f"Error fetching env data: {e}")
+        errors.append(f"Env: {str(e)}")
+        # env_client.get_live_data should handle its own errors and return fallback, 
+        # but if it raises, we leave real_env as None.
 
-        # Map AQI index (1-5) to 0-500 scale for internal engines
+    # Prepare inputs for other engines based on env data
+    if real_env:
         aqi_index = real_env.get("aqi_index_1_5", 3)
-        aqi_map = {1: 50, 2: 100, 3: 200, 4: 300, 5: 400}
-        internal_aqi_score = aqi_map.get(aqi_index, 200)
+        # Use actual AQI number if available, otherwise map from index
+        internal_aqi_score = real_env.get("aqi_number")
+        if internal_aqi_score is None:
+            aqi_map = {1: 50, 2: 100, 3: 200, 4: 300, 5: 400}
+            internal_aqi_score = aqi_map.get(aqi_index, 200)
+        
+        pm2_5 = real_env.get("pollutants", {}).get("pm2_5", 0)
+        pm10 = real_env.get("pollutants", {}).get("pm10", 0)
+        temperature = real_env.get("temperature_c", 25)
+        humidity = real_env.get("humidity", 50)
+    else:
+        # Fallback if env fetch completely crashed (unlikely with new env_client)
+        internal_aqi_score = 150
+        pm2_5 = 50
+        pm10 = 100
+        temperature = 25
+        humidity = 50
 
-        # 2. Get upcoming festivals
+    # 2. Get upcoming festivals
+    try:
         festivals = festival_repo.get_upcoming_festivals(days_ahead=30)
         if not festivals:
             festivals = festival_client.fetch_festivals(days_ahead=30)
             if festivals:
                 festival_repo.upsert_festivals(festivals)
+    except Exception as e:
+        print(f"Error fetching festivals: {e}")
+        errors.append(f"Festivals: {str(e)}")
+        # Continue with empty festivals
 
-        # 3. Calculate festival features
+    # 3. Calculate festival features
+    try:
         festival_features = festival_client.calculate_festival_features(festivals)
+    except Exception as e:
+        print(f"Error calculating festival features: {e}")
+        festival_features = {}
 
-        # 4. Prepare risk inputs (placeholder values for demo)
+    # 4. Prepare risk inputs & Run Risk Engine
+    try:
         patient_slope_6h = 1.1
         epidemic_index = 2.0
         icu_occupancy = 0.75
         current_patients = 160
+        
         risk_inputs = {
             "aqi": internal_aqi_score,
-            "pm2_5": real_env.get("pollutants", {}).get("pm2_5", 0),
-            "pm10": real_env.get("pollutants", {}).get("pm10", 0),
-            "temperature": real_env.get("temperature_c", 25),
-            "humidity": real_env.get("humidity", 50),
+            "pm2_5": pm2_5,
+            "pm10": pm10,
+            "temperature": temperature,
+            "humidity": humidity,
             "patient_slope_6h": patient_slope_6h,
             "epidemic_index": epidemic_index,
             "festival_nearby": festival_features.get("is_high_risk_festival_window", False),
             "icu_occupancy": icu_occupancy,
             "current_patients": current_patients,
         }
-
-        # 5. Run risk assessment
         risk_result = risk_engine.calculate_comprehensive_risk(risk_inputs)
+    except Exception as e:
+        print(f"Error calculating risk: {e}")
+        errors.append(f"Risk: {str(e)}")
 
-        # 6. Run forecast
+    # 5. Run Forecast Engine
+    try:
         forecast_context = {
             "aqi": internal_aqi_score,
-            "temperature": real_env.get("temperature_c", 25),
-            "humidity": real_env.get("humidity", 50),
+            "temperature": temperature,
+            "humidity": humidity,
             "epidemic_severity": epidemic_index,
             "patient_slope_24h": patient_slope_6h,
             "festivals": festivals,
             "current_load": current_patients,
         }
         forecast_result = forecast_engine.generate_forecast(days, forecast_context)
+    except Exception as e:
+        print(f"Error generating forecast: {e}")
+        errors.append(f"Forecast: {str(e)}")
 
-        # 7. Calculate staffing requirements
+    # 6. Calculate Staffing & Supplies
+    try:
         today_forecast = forecast_result[0] if forecast_result else None
         predicted_patients_today = today_forecast["total_patients"] if today_forecast else current_patients
         respiratory_cases = today_forecast["breakdown"]["respiratory"] if today_forecast else 0
+        
+        icu_risk = risk_result["breakdown"]["icu_risk"] if risk_result else 0.5
+
         staffing_result = staffing_engine.recommend_staffing(
             predicted_patients_today=predicted_patients_today,
-            icu_risk=risk_result["breakdown"]["icu_risk"],
+            icu_risk=icu_risk,
             epidemic_index=epidemic_index,
             aqi_level=internal_aqi_score,
             respiratory_cases=respiratory_cases,
         )
 
-        # 8. Calculate supply requirements
         supply_result = supply_engine.recommend_supplies(
             forecast=forecast_result,
             current_stock=None,
@@ -114,34 +166,40 @@ async def predict_live(
             aqi_level=internal_aqi_score,
             epidemic_index=epidemic_index,
         )
+    except Exception as e:
+        print(f"Error calculating resources: {e}")
+        errors.append(f"Resources: {str(e)}")
 
-        # Normalize festivals for frontend (name/is_high_risk vs summary/high_risk)
-        normalized_festivals = []
+    # 7. Normalize festivals for frontend
+    normalized_festivals = []
+    try:
         for f in festivals:
             normalized_festivals.append({
                 "date": f.get("date"),
                 "name": f.get("summary", f.get("name", "Unknown")),
                 "is_high_risk": f.get("high_risk", f.get("is_high_risk", False))
             })
-
-        # 9. Return structured response
-        return LiveResponse(
-            env=real_env, # Return the clean OpenWeather env without modification
-            risk=risk_result,
-            forecast=forecast_result,
-            staffing=staffing_result,
-            supplies=supply_result,
-            festivals=normalized_festivals[:10],
-        )
     except Exception as e:
-        # Return a JSON error payload instead of HTML error page
-        return LiveResponse(
-            error=str(e),
-            env=None,
-            risk=None,
-            forecast=[],
-            staffing=[],
-        )
+        print(f"Error normalizing festivals: {e}")
+
+    # 8. Get Hospital Overview
+    try:
+        hospital_overview = data_loader.get_hospital_overview()
+    except Exception as e:
+        print(f"Error fetching hospital overview: {e}")
+        hospital_overview = {}
+
+    # 9. Return structured response
+    return LiveResponse(
+        env=real_env,
+        risk=risk_result,
+        forecast=forecast_result,
+        staffing=staffing_result,
+        supplies=supply_result,
+        festivals=normalized_festivals[:10],
+        hospital_overview=hospital_overview,
+        error="; ".join(errors) if errors else None
+    )
 
 class ChatRequest(BaseModel):
     message: str

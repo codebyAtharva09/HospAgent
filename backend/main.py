@@ -22,6 +22,13 @@ from services.env_client import EnvironmentClient
 from routers.festivals import router as festivals_router
 from routers.predict import router as predict_router
 from routers.calendar import router as calendar_router
+from routers.auth import router as auth_router
+from routers.alerts import router as alerts_router
+from routers.command_center import router as command_center_router
+from db_config import create_db_and_tables, get_session
+from models.auth import User, UserRole
+from services.auth_service import get_password_hash
+from sqlmodel import Session, select
 
 app = FastAPI(title="HospAgent SurgeOps", version="2.1")
 
@@ -51,6 +58,24 @@ app.include_router(ai_command.router, prefix="/api")
 
 from routers import alerts
 app.include_router(alerts.router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(command_center_router, prefix="/api")
+
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
+    # Seed users
+    with Session(next(get_session()).bind) as session:
+        if not session.exec(select(User)).first():
+            users = [
+                User(email="director@hospital.com", full_name="Super Admin", hashed_password=get_password_hash("password123"), role=UserRole.SUPER_ADMIN),
+                User(email="ops@hospital.com", full_name="Admin", hashed_password=get_password_hash("password123"), role=UserRole.ADMIN),
+                User(email="frontdesk@hospital.com", full_name="Receptionist", hashed_password=get_password_hash("password123"), role=UserRole.RECEPTION),
+                User(email="pharmacy@hospital.com", full_name="Pharmacist", hashed_password=get_password_hash("password123"), role=UserRole.PHARMACIST),
+            ]
+            for user in users:
+                session.add(user)
+            session.commit()
 
 from routers import vapi_tools
 app.include_router(vapi_tools.router, prefix="/api")
@@ -68,6 +93,17 @@ class LivePredictionResponse(BaseModel):
 @app.get("/")
 def root():
     return {"message": "HospAgent SurgeOps Live v2.1"}
+
+@app.get("/api/health")
+def health():
+    """
+    Simple health check endpoint.
+    """
+    return {
+        "status": "ok",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "HospAgent Backend"
+    }
 
 @app.get("/env/live")
 async def get_live_env(lat: float = None, lon: float = None):

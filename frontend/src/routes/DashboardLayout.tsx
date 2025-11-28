@@ -1,9 +1,17 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Activity, MonitorPlay, User, MapPin } from 'lucide-react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Activity, MonitorPlay, User, MapPin, Settings, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export const DashboardLayout = () => {
     const location = useLocation();
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
 
     const isActive = (path: string) => {
         return location.pathname.startsWith(path) ? 'bg-[#769DD7] text-white' : 'text-slate-600 hover:bg-[#CDDBE5] hover:text-slate-800';
@@ -42,17 +50,29 @@ export const DashboardLayout = () => {
                         <Activity className="w-5 h-5" />
                         Predictive
                     </Link>
+                    {(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
+                        <Link
+                            to="#"
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium text-slate-600 hover:bg-[#CDDBE5] hover:text-slate-800`}
+                        >
+                            <Settings className="w-5 h-5" />
+                            Settings
+                        </Link>
+                    )}
                 </nav>
 
                 <div className="p-4 border-t border-slate-100">
                     <div className="flex items-center gap-3 px-4 py-3">
                         <div className="w-10 h-10 rounded-full bg-[#CDDBE5] flex items-center justify-center text-[#769DD7] font-bold">
-                            HA
+                            {user?.full_name?.charAt(0) || 'U'}
                         </div>
-                        <div>
-                            <p className="text-sm font-bold text-slate-700">Admin User</p>
-                            <p className="text-xs text-slate-500">Hospital Admin</p>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-slate-700 truncate w-32">{user?.full_name || 'User'}</p>
+                            <p className="text-xs text-slate-500">{user?.role || 'Role'}</p>
                         </div>
+                        <button onClick={handleLogout} className="text-slate-400 hover:text-red-500">
+                            <LogOut className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
             </aside>

@@ -11,7 +11,10 @@ import AIStrategicAdvisoryCard from '../components/predictive/AIStrategicAdvisor
 import EmergencyAlertsCard from '../components/predictive/EmergencyAlertsCard';
 import LiveEnvHeader, { CommandCenterEnv } from '../components/predictive/LiveEnvHeader';
 import UpcomingFestivalsCard, { FestivalEvent } from '../components/predictive/UpcomingFestivalsCard';
+import SeasonalDiseaseCard from '../components/predictive/SeasonalDiseaseCard';
+import EpidemicStatusCard from '../components/predictive/EpidemicStatusCard';
 import { getCommandCenter, getUpcomingFestivals } from '../api/commandCenter';
+import { useAuth } from '../context/AuthContext';
 import '../App.css';
 
 export const PredictivePage = () => {
@@ -21,11 +24,14 @@ export const PredictivePage = () => {
         staffing: [] as any[],
         supplies: [] as any[],
         festivals: [] as any[],
-        env: null as CommandCenterEnv | null
+        env: null as CommandCenterEnv | null,
+        seasonal: null as any,
+        epidemic: null as any
     });
     const [upcomingFestivals, setUpcomingFestivals] = useState<FestivalEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [errorInfo, setErrorInfo] = useState<{ endpoint: string; status: number; message: string } | null>(null);
+    const { user } = useAuth();
 
     const fetchData = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -100,7 +106,9 @@ export const PredictivePage = () => {
                 staffing: staffingData,
                 supplies: suppliesData,
                 festivals: festivalData,
-                env: cmdData.env
+                env: cmdData.env,
+                seasonal: cmdData.risk.seasonal,
+                epidemic: cmdData.risk.epidemic
             });
 
         } catch (err: any) {
@@ -166,7 +174,9 @@ export const PredictivePage = () => {
 
                 <main className="dashboard-grid">
                     <div className="grid-column col-main">
-                        {data.risk && (
+                        <SevenDayForecastCard data={data.forecast || []} />
+
+                        {data.risk && (user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN') && (
                             <AIStrategicAdvisoryCard
                                 riskIndex={data.risk.hospital_risk_index}
                                 riskLevel={data.risk.level}
@@ -176,9 +186,13 @@ export const PredictivePage = () => {
                             />
                         )}
                         <RiskCard riskData={data.risk} />
-                        <SevenDayForecastCard data={data.forecast || []} />
                     </div>
                     <div className="grid-column col-secondary">
+                        <StaffCard staffingPlan={data.staffing || []} />
+                        <SupplyCard supplyPlan={data.supplies || []} />
+                        <UpcomingFestivalsCard events={upcomingFestivals} />
+                    </div>
+                    <div className="grid-column col-sidebar">
                         {data.risk && (
                             <EmergencyAlertsCard
                                 riskLevel={data.risk.level}
@@ -187,11 +201,23 @@ export const PredictivePage = () => {
                             />
                         )}
                         <ExplainabilityPanel explanations={data.risk?.explanations || []} />
-                        <StaffCard staffingPlan={data.staffing || []} />
-                        <SupplyCard supplyPlan={data.supplies || []} />
-                    </div>
-                    <div className="grid-column col-sidebar">
-                        <UpcomingFestivalsCard events={upcomingFestivals} />
+
+                        {data.seasonal && (
+                            <SeasonalDiseaseCard
+                                activeDiseases={data.seasonal.active_diseases}
+                                riskIndex={data.seasonal.seasonal_risk_index}
+                                commentary={data.seasonal.commentary}
+                            />
+                        )}
+
+                        {data.epidemic && (
+                            <EpidemicStatusCard
+                                level={data.epidemic.level}
+                                reason={data.epidemic.reason}
+                                index={data.epidemic.epidemic_index}
+                            />
+                        )}
+
                         <StaffWellbeingCard riskData={data.risk} />
                     </div>
                 </main>

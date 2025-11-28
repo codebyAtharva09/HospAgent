@@ -9,6 +9,16 @@ export interface CommandCenterResponse {
     risk: {
         index: number;
         level: string;
+        seasonal?: {
+            active_diseases: string[];
+            seasonal_risk_index: number;
+            commentary: string;
+        };
+        epidemic?: {
+            epidemic_index: number;
+            level: string;
+            reason: string;
+        };
     };
     risk_analysis: {
         factors: string[];

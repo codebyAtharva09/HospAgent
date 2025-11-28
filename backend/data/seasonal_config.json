@@ -1,0 +1,33 @@
+{
+    "disease_factors": [
+        {
+            "name": "Dengue",
+            "months": [
+                6,
+                7,
+                8,
+                9
+            ],
+            "base_risk": 0.25
+        },
+        {
+            "name": "Flu",
+            "months": [
+                11,
+                12,
+                1,
+                2
+            ],
+            "base_risk": 0.3
+        },
+        {
+            "name": "Heat Stroke",
+            "months": [
+                4,
+                5
+            ],
+            "base_risk": 0.2
+        }
+    ],
+    "epidemic_default": 0.1
+}
