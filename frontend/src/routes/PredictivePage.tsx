@@ -27,8 +27,8 @@ export const PredictivePage = () => {
     const [loading, setLoading] = useState(true);
     const [errorInfo, setErrorInfo] = useState<{ endpoint: string; status: number; message: string } | null>(null);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchData = async (silent = false) => {
+        if (!silent) setLoading(true);
         setErrorInfo(null);
         try {
             const cmdData = await getCommandCenter();
@@ -111,7 +111,7 @@ export const PredictivePage = () => {
                 message: err.message || 'Failed to load data'
             });
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
 
@@ -136,7 +136,7 @@ export const PredictivePage = () => {
 
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 60000);
+        const interval = setInterval(() => fetchData(true), 15000);
         return () => clearInterval(interval);
     }, []);
 
@@ -172,6 +172,7 @@ export const PredictivePage = () => {
                                 riskLevel={data.risk.level}
                                 factors={data.risk.contributing_factors}
                                 confidence={data.risk.confidence}
+                                lastUpdated={data.env?.last_updated_utc}
                             />
                         )}
                         <RiskCard riskData={data.risk} />

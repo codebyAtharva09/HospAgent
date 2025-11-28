@@ -1,7 +1,7 @@
 import httpx
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -103,13 +103,19 @@ class EnvironmentClient:
 
         print(f"[ENV] pm2.5={pm25}, pm10={pm10}, aqi_number={aqi_number}, index={aqi_index}")
 
+        # Use current time to reflect the polling freshness
+        last_updated = datetime.now(timezone.utc).isoformat()
+        # if 'dt' in weather:
+        #     last_updated = datetime.fromtimestamp(weather['dt'], timezone.utc).isoformat()
+
         return {
             "location": {
                 "lat": weather.get("coord", {}).get("lat"),
                 "lon": weather.get("coord", {}).get("lon"),
                 "name": "Goregaon, Mumbai" # Hardcoded as per request or use weather.get("name")
             },
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": last_updated, # Keep for backward compatibility if needed, but prefer last_updated_utc
+            "last_updated_utc": last_updated,
             "temperature_c": weather.get("main", {}).get("temp"),
             "humidity": weather.get("main", {}).get("humidity"),
             "weather_desc": weather.get("weather", [{}])[0].get("description", "clear"),

@@ -231,7 +231,8 @@ async def get_command_center_data():
             "aqi": int(aqi),
             "pm25": float(env_data.get("pollutants", {}).get("pm2_5", 0)),
             "temp_c": float(env_data.get("temperature_c", 25)),
-            "weather_label": str(env_data.get("weather", "Clear"))
+            "weather_label": str(env_data.get("weather", "Clear")),
+            "last_updated_utc": env_data.get("last_updated_utc")
         },
         "risk": {
             "index": int(risk_result.get("hospital_risk_index", 0)),

@@ -4,6 +4,7 @@ export interface CommandCenterResponse {
         pm25: number;
         temp_c: number;
         weather_label: string;
+        last_updated_utc?: string;
     };
     risk: {
         index: number;
