@@ -57,8 +57,12 @@ app.include_router(festivals.router, prefix="/api")
 app.include_router(ai_command.router, prefix="/api")
 
 from routers import alerts
+from routers.admin_users import router as admin_users_router
+from routers.hospital_ops import router as hospital_ops_router
 app.include_router(alerts.router, prefix="/api")
 app.include_router(auth_router, prefix="/api/auth")
+app.include_router(admin_users_router)
+app.include_router(hospital_ops_router, prefix="/api")
 app.include_router(command_center_router, prefix="/api")
 
 @app.on_event("startup")

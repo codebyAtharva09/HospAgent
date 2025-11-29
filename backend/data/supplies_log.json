@@ -1,0 +1,30 @@
+[
+  {
+    "supply_id": "oxygen_cylinders",
+    "supply_name": "Oxygen Cylinders",
+    "quantity_change": 10,
+    "role": "PHARMACIST",
+    "timestamp": "2025-11-29T02:04:23.573378"
+  },
+  {
+    "supply_id": "iv_fluids",
+    "supply_name": "IV Fluids",
+    "quantity_change": 200,
+    "role": "PHARMACIST",
+    "timestamp": "2025-11-29T02:04:54.638419"
+  },
+  {
+    "supply_id": "nebulizers",
+    "supply_name": "Nebulizers",
+    "quantity_change": 20,
+    "role": "PHARMACIST",
+    "timestamp": "2025-11-29T02:13:26.950452"
+  },
+  {
+    "supply_id": "nebulizers",
+    "supply_name": "Nebulizers",
+    "quantity_change": 10,
+    "role": "PHARMACIST",
+    "timestamp": "2025-11-29T03:19:52.928513"
+  }
+]

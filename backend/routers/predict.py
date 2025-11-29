@@ -104,11 +104,32 @@ async def predict_live(
         festival_features = {}
 
     # 4. Prepare risk inputs & Run Risk Engine
+    # 4. Prepare risk inputs & Run Risk Engine
     try:
-        patient_slope_6h = 1.1
+        # Fetch live data
+        from repositories import patients_repo, supplies_repo
+        patient_summary = patients_repo.get_patient_summary()
+        current_patients = patient_summary["active_inpatients"]
+        
+        # Calculate ICU occupancy
+        # Assuming total ICU beds is fixed or we can get it from data_loader if needed.
+        # For now, let's use a default or fetch from overview if available.
+        # Overview has 'icu_beds'
+        overview = data_loader.get_hospital_overview()
+        total_icu_beds = overview.get("icu_beds", 20)
+        
+        # Count active ICU patients
+        # We need to filter by bed_type="ICU"
+        # patients_repo.get_patient_summary doesn't return breakdown by bed_type in the dict directly, 
+        # but we can fetch list or update get_patient_summary.
+        # Let's fetch list for accuracy here.
+        active_patients_list = patients_repo.list_patients(status="ADMITTED")
+        icu_patients = len([p for p in active_patients_list if p.bed_type == "ICU"])
+        
+        icu_occupancy = icu_patients / total_icu_beds if total_icu_beds > 0 else 0.0
+        
+        patient_slope_6h = 1.1 # Mock for now as we don't have time-series data
         epidemic_index = 2.0
-        icu_occupancy = 0.75
-        current_patients = 160
         
         risk_inputs = {
             "aqi": internal_aqi_score,
@@ -185,6 +206,13 @@ async def predict_live(
     # 8. Get Hospital Overview
     try:
         hospital_overview = data_loader.get_hospital_overview()
+        # Inject live patient data
+        if 'patient_summary' in locals():
+            hospital_overview["current_inpatients"] = patient_summary["active_inpatients"]
+            hospital_overview["icus_occupied"] = icu_patients # Calculated earlier
+            hospital_overview["wards_occupied"] = patient_summary["active_inpatients"] - icu_patients
+            hospital_overview["total_beds"] = hospital_overview.get("total_beds", 500) # Ensure default
+            hospital_overview["icu_beds"] = hospital_overview.get("icu_beds", 20)
     except Exception as e:
         print(f"Error fetching hospital overview: {e}")
         hospital_overview = {}

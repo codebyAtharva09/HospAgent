@@ -16,6 +16,7 @@ class DataLoader:
 
     def _load_data(self):
         """Loads CSV data into memory."""
+        print("Loading data from CSVs...")
         try:
             self.hospital_data = pd.read_csv(os.path.join(DATA_DIR, 'hospital_data.csv'))
         except FileNotFoundError:

@@ -1,53 +1,74 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-type UserRole = "SUPER_ADMIN" | "ADMIN" | "RECEPTION" | "PHARMACIST";
+// Define types matching backend
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'RECEPTION' | 'PHARMACIST';
 
-interface AuthUser {
+export interface User {
     id: number;
+    email: string;
     full_name: string;
     role: UserRole;
-    email: string;
 }
 
-interface AuthContextValue {
-    user: AuthUser | null;
+interface AuthContextType {
+    user: User | null;
     token: string | null;
-    login: (token: string, user: AuthUser) => void;
-    logout: () => void;
     isAuthenticated: boolean;
+    isLoading: boolean;
+    login: (token: string, user: User) => void;
+    logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-    const [user, setUser] = useState<AuthUser | null>(null);
-    const [token, setToken] = useState<string | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-        }
+        const initAuth = async () => {
+            const storedToken = localStorage.getItem('token');
+            if (storedToken) {
+                try {
+                    const response = await fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': `Bearer ${storedToken}`
+                        }
+                    });
+                    if (response.ok) {
+                        const userData = await response.json();
+                        setUser(userData);
+                        setToken(storedToken);
+                    } else {
+                        // Token invalid
+                        logout();
+                    }
+                } catch (error) {
+                    console.error("Auth check failed", error);
+                    logout();
+                }
+            }
+            setIsLoading(false);
+        };
+        initAuth();
     }, []);
 
-    const login = (newToken: string, newUser: AuthUser) => {
+    const login = (newToken: string, newUser: User) => {
+        localStorage.setItem('token', newToken);
         setToken(newToken);
         setUser(newUser);
-        localStorage.setItem('token', newToken);
-        localStorage.setItem('user', JSON.stringify(newUser));
     };
 
     const logout = () => {
+        localStorage.removeItem('token');
         setToken(null);
         setUser(null);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
+        <AuthContext.Provider value={{ user, token, isAuthenticated: !!user, isLoading, login, logout }}>
             {children}
         </AuthContext.Provider>
     );

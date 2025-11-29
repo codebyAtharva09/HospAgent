@@ -1,0 +1,24 @@
+[
+  {
+    "id": "REQ-001",
+    "supply_id": "iv_fluids",
+    "supply_name": "IV Fluids",
+    "requested_by": "director@hospital.com",
+    "requested_qty": 120,
+    "status": "PENDING",
+    "approved_by": null,
+    "created_at": "2025-11-29T01:25:04.509203",
+    "resolved_at": null
+  },
+  {
+    "id": "REQ-002",
+    "supply_id": "iv_fluids",
+    "supply_name": "IV Fluids",
+    "requested_by": "pharmacy@hospital.com",
+    "requested_qty": 120,
+    "status": "PENDING",
+    "approved_by": null,
+    "created_at": "2025-11-29T01:33:46.133366",
+    "resolved_at": null
+  }
+]

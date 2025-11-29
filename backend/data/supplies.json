@@ -1,0 +1,37 @@
+[
+  {
+    "id": "oxygen_cylinders",
+    "name": "Oxygen Cylinders",
+    "current_stock": 560,
+    "reorder_threshold": 100,
+    "unit": "units"
+  },
+  {
+    "id": "n95_masks",
+    "name": "N95 Masks",
+    "current_stock": 1200,
+    "reorder_threshold": 500,
+    "unit": "boxes"
+  },
+  {
+    "id": "iv_fluids",
+    "name": "IV Fluids",
+    "current_stock": 280,
+    "reorder_threshold": 100,
+    "unit": "bottles"
+  },
+  {
+    "id": "nebulizers",
+    "name": "Nebulizers",
+    "current_stock": 75,
+    "reorder_threshold": 20,
+    "unit": "units"
+  },
+  {
+    "id": "ppe_kits",
+    "name": "PPE Kits",
+    "current_stock": 300,
+    "reorder_threshold": 150,
+    "unit": "kits"
+  }
+]

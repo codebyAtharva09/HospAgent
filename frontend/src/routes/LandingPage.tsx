@@ -4,9 +4,12 @@ import { motion } from "framer-motion";
 import { ArrowRight, Activity, ShieldCheck, Zap, BarChart3 } from "lucide-react";
 import { Button } from "../components/ui/button";
 
+import { TopNavbar } from '../components/layout/TopNavbar';
+
 export const LandingPage = () => {
     return (
-        <div className="relative overflow-hidden bg-white dark:bg-slate-950 min-h-screen">
+        <div className="relative overflow-hidden bg-white dark:bg-slate-950 min-h-screen pt-14">
+            <TopNavbar />
             {/* Hero Section */}
             <section className="relative pt-20 pb-32 md:pt-32 md:pb-48 overflow-hidden">
                 <div className="absolute inset-0 z-0 w-full h-full overflow-hidden">

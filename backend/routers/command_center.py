@@ -1,11 +1,44 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from routers.predict import predict_live, LiveResponse
 from services.data_loader import data_loader
+from services.notify import (
+    load_notification_config, 
+    send_email, 
+    send_sms, 
+    should_send_alert
+)
 
 router = APIRouter(tags=["command-center"])
 
+async def check_and_trigger_alerts(data: dict):
+    config = load_notification_config()
+    
+    # 1. Risk Alert
+    risk_level = data.get("risk", {}).get("level", "LOW")
+    if risk_level in ["HIGH", "CRITICAL"]:
+        if should_send_alert("risk", risk_level):
+            msg = f"High Risk Alert: Hospital Risk Level is {risk_level}."
+            await send_email(config.high_risk_emails, "High Risk Alert", msg)
+            await send_sms(config.high_risk_sms, msg)
+
+    # 2. Supply Alert
+    for supply in data.get("supplies", []):
+        if supply["status"] in ["LOW", "CRITICAL"]:
+            if should_send_alert("supply", supply["name"]):
+                msg = f"Supply Alert: {supply['name']} is {supply['status']}."
+                await send_email(config.critical_supply_emails, "Supply Alert", msg)
+                await send_sms(config.critical_supply_sms, msg)
+
+    # 3. Festival Alert
+    fest = data.get("festival", {})
+    if fest.get("risk_level") == "HIGH" and fest.get("is_tomorrow"):
+        if should_send_alert("festival", fest["name"]):
+            msg = f"Festival Surge Alert: {fest['name']} tomorrow. High risk."
+            await send_email(config.festival_surge_emails, "Festival Surge Alert", msg)
+            await send_sms(config.festival_surge_sms, msg)
+
 @router.get("/command-center")
-async def get_command_center_data():
+async def get_command_center_data(background_tasks: BackgroundTasks):
     """
     Aggregated data for the Command Center Dashboard.
     Transforms the internal prediction engine output to match the frontend schema.
@@ -55,25 +88,22 @@ async def get_command_center_data():
         }
     }
 
-    # 2. Transform Supplies
-    # Backend: List[Dict] -> Frontend: List[Dict] (rename item -> name, add available)
+    # 2. Transform Supplies (Live from Repo)
+    from repositories import supplies_repo
+    live_supplies = supplies_repo.list_supplies()
+    
     supplies_transformed = []
-    for s in live_data.supplies:
-        req = s.get("required", 0)
-        status = s.get("status", "OK")
-        # Mock available based on status
-        if status == "OK":
-            avail = int(req * 1.5)
-        elif status == "MEDIUM":
-            avail = int(req * 1.1)
-        else:
-            avail = int(req * 0.8)
-            
+    for s in live_supplies:
+        # Map to frontend expected format
+        # Frontend expects: name, status, required (mock), available (current_stock)
+        # We can keep 'required' as a mock or derived value for now as we don't have a 'required' field in repo yet.
+        # But we can use reorder_threshold as a proxy for 'required' or just keep it 0.
+        
         supplies_transformed.append({
-            "name": s.get("item"),
-            "status": status,
-            "required": req,
-            "available": avail
+            "name": s.name,
+            "status": s.status,
+            "required": s.reorder_threshold, # Using threshold as a proxy for 'required' baseline
+            "available": s.current_stock
         })
 
     # 3. Transform Forecast
@@ -147,7 +177,7 @@ async def get_command_center_data():
     # 6. Risk Analysis
     risk_factors = live_data.risk.get("contributing_factors", []) if live_data.risk else []
 
-    return {
+    response_data = {
         "env": live_data.env,
         "risk": live_data.risk,
         "risk_analysis": {
@@ -162,13 +192,39 @@ async def get_command_center_data():
         "wellbeing": wellbeing_transformed
     }
 
+    # Trigger alerts in background
+    background_tasks.add_task(check_and_trigger_alerts, response_data)
+
+    return response_data
+
 @router.get("/hospital-overview")
 def get_hospital_overview():
     overview = data_loader.get_hospital_overview()
     specs = data_loader.get_doctor_specializations()
     
+    # Live Patient Data
+    from repositories import patients_repo
+    summary = patients_repo.get_patient_summary()
+    
+    # Update overview with live counts
+    overview["total_patients"] = summary["active_inpatients"] # Or total_patients if that's what is expected
+    # We can also update bed counts if we had max capacity. 
+    # For now, let's assume 'total_beds' is fixed capacity, and we might want to show 'occupied'.
+    # The frontend uses 'total_beds', 'icu_beds' etc. 
+    # If we want to show occupancy, we might need to adjust the frontend or send 'occupied_beds'.
+    # The user asked: "hospital_overview.current_inpatients", "hospital_overview.bed_occupancy"
+    
+    overview["current_inpatients"] = summary["active_inpatients"]
+    
+    # Calculate occupancy by ward type
+    patients = patients_repo.list_patients(status="ADMITTED")
+    icu_count = len([p for p in patients if p.bed_type == "ICU"])
+    ward_count = len([p for p in patients if p.bed_type == "General Ward"])
+    
+    overview["icus_occupied"] = icu_count
+    overview["wards_occupied"] = ward_count
+    
     # Add missing fields (mock or default if not in CSV)
-    # DataLoader returns dict, we can extend it
     overview["wards"] = 8 # Default
     overview["operating_theaters"] = 4 # Default
     overview["doctors_by_specialization"] = specs

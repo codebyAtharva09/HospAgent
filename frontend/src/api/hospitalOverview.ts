@@ -13,6 +13,10 @@ export interface HospitalOverviewResponse {
     wards: number;
     operating_theaters: number;
     doctors_by_specialization: DoctorSpecialization[];
+    // New fields
+    current_inpatients?: number;
+    icus_occupied?: number;
+    wards_occupied?: number;
 }
 
 export async function getHospitalOverview(): Promise<HospitalOverviewResponse> {
